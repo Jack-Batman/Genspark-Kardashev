@@ -1,0 +1,43 @@
+name: kardashev_ascension
+description: "Kardashev: Ascension - Guide civilization through cosmic eras in a visually stunning idle experience"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Game Engine
+  flame: 1.32.0
+  
+  # State Management
+  provider: 6.1.5+1
+  
+  # Local Storage (Local-first design)
+  hive: 2.2.3
+  hive_flutter: 1.1.0
+  
+  # Utilities
+  intl: ^0.20.0
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.2
+  
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.13
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
+    - assets/audio/
+    - assets/icons/

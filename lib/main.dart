@@ -5,6 +5,7 @@ import 'core/constants.dart';
 import 'providers/game_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/game_screen.dart';
+import 'widgets/tutorial_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +25,9 @@ void main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
+  
+  // Initialize tutorial manager
+  await TutorialManager.instance.initialize();
   
   runApp(const KardashevApp());
 }

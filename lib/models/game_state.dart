@@ -92,6 +92,33 @@ class GameState extends HiveObject {
   @HiveField(27, defaultValue: 0)
   int researchTotalPersisted; // Total time for current research
   
+  // Achievements
+  @HiveField(28)
+  List<String> unlockedAchievements; // List of unlocked achievement IDs
+  
+  @HiveField(29)
+  List<String> claimedAchievements; // List of claimed achievement IDs
+  
+  // Settings
+  @HiveField(30, defaultValue: true)
+  bool soundEnabled;
+  
+  @HiveField(31, defaultValue: true)
+  bool hapticsEnabled;
+  
+  @HiveField(32, defaultValue: true)
+  bool notificationsEnabled;
+  
+  // Daily login
+  @HiveField(33)
+  DateTime? lastLoginDate;
+  
+  @HiveField(34, defaultValue: 0)
+  int loginStreak;
+  
+  @HiveField(35, defaultValue: 0)
+  int totalLoginDays;
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -121,7 +148,17 @@ class GameState extends HiveObject {
     this.researchStartTime,
     this.currentResearchIdPersisted,
     this.researchTotalPersisted = 0,
+    List<String>? unlockedAchievements,
+    List<String>? claimedAchievements,
+    this.soundEnabled = true,
+    this.hapticsEnabled = true,
+    this.notificationsEnabled = true,
+    this.lastLoginDate,
+    this.loginStreak = 0,
+    this.totalLoginDays = 0,
   })  : generators = generators ?? {},
+        unlockedAchievements = unlockedAchievements ?? [],
+        claimedAchievements = claimedAchievements ?? [],
         generatorLevels = generatorLevels ?? {},
         unlockedResearch = unlockedResearch ?? [],
         ownedArchitects = ownedArchitects ?? [],
@@ -129,11 +166,28 @@ class GameState extends HiveObject {
         lastOnlineTime = lastOnlineTime ?? DateTime.now(),
         unlockedEras = unlockedEras ?? [0]; // Start with Era I unlocked
   
+  /// Get total generators count
+  int get totalGenerators => generators.values.fold(0, (a, b) => a + b);
+  
+  /// Get completed research count (excluding "researching_" markers)
+  int get completedResearchCount => unlockedResearch.where((r) => !r.startsWith('researching_')).length;
+  
   /// Get current Era enum
   Era get era => Era.values[currentEra.clamp(0, Era.values.length - 1)];
   
   /// Get current Era config
   EraConfig get eraConfig => eraConfigs[era]!;
+  
+  /// Get era name as Roman numeral (I, II, III, IV)
+  String get eraName {
+    switch (currentEra) {
+      case 0: return 'I';
+      case 1: return 'II';
+      case 2: return 'III';
+      case 3: return 'IV';
+      default: return 'I';
+    }
+  }
   
   /// Get generators for current era
   List<GeneratorDataV2> get currentEraGenerators => getGeneratorsForEra(era);
@@ -342,6 +396,14 @@ class GameState extends HiveObject {
     DateTime? researchStartTime,
     String? currentResearchIdPersisted,
     int? researchTotalPersisted,
+    List<String>? unlockedAchievements,
+    List<String>? claimedAchievements,
+    bool? soundEnabled,
+    bool? hapticsEnabled,
+    bool? notificationsEnabled,
+    DateTime? lastLoginDate,
+    int? loginStreak,
+    int? totalLoginDays,
   }) {
     return GameState(
       energy: energy ?? this.energy,
@@ -372,6 +434,14 @@ class GameState extends HiveObject {
       researchStartTime: researchStartTime ?? this.researchStartTime,
       currentResearchIdPersisted: currentResearchIdPersisted ?? this.currentResearchIdPersisted,
       researchTotalPersisted: researchTotalPersisted ?? this.researchTotalPersisted,
+      unlockedAchievements: unlockedAchievements ?? List.from(this.unlockedAchievements),
+      claimedAchievements: claimedAchievements ?? List.from(this.claimedAchievements),
+      soundEnabled: soundEnabled ?? this.soundEnabled,
+      hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      lastLoginDate: lastLoginDate ?? this.lastLoginDate,
+      loginStreak: loginStreak ?? this.loginStreak,
+      totalLoginDays: totalLoginDays ?? this.totalLoginDays,
     );
   }
   

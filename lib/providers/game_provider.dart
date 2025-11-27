@@ -4,10 +4,18 @@ import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/game_state.dart';
 import '../models/architect.dart';
+import '../models/achievement.dart';
+import '../models/daily_reward.dart';
+import '../models/expedition.dart';
+import '../models/architect_ability.dart';
+import '../models/challenge.dart';
 import '../core/constants.dart';
 import '../core/era_data.dart';
 import '../models/research_v2.dart';
 import '../services/haptic_service.dart';
+import '../services/audio_service.dart';
+import '../widgets/notification_banner.dart';
+import '../widgets/tutorial_manager.dart';
 
 /// Dynamic prestige information
 class PrestigeInfo {
@@ -43,13 +51,144 @@ class GameProvider extends ChangeNotifier {
   bool _showEraTransition = false;
   EraTransition? _pendingTransition;
   
+  // Achievement notification queue
+  final List<Achievement> _pendingAchievementNotifications = [];
+  Achievement? _currentAchievementNotification;
+  
+  // Daily login state
+  bool _showDailyReward = false;
+  DailyReward? _pendingDailyReward;
+  bool _dailyRewardClaimed = false;
+  
+  // Expedition state
+  final List<ActiveExpedition> _activeExpeditions = [];
+  
+  // Production boost state
+  double _productionBoostMultiplier = 1.0;
+  DateTime? _productionBoostEndTime;
+  
+  // Ability cooldowns
+  final Map<String, AbilityCooldown> _abilityCooldowns = {};
+  
+  // Temporary ability effects
+  double _tempCostReduction = 0.0;
+  DateTime? _tempCostReductionEnd;
+  double _tempOfflineBonus = 0.0;
+  DateTime? _tempOfflineBonusEnd;
+  bool _hasFreePurchase = false;
+  
+  // Challenges system
+  List<ActiveChallenge> _dailyChallenges = [];
+  List<ActiveChallenge> _weeklyChallenges = [];
+  DateTime? _lastDailyChallengeReset;
+  DateTime? _lastWeeklyChallengeReset;
+  
+  // Challenge tracking - Kardashev start for weekly progress calculation
+  double _sessionKardashevStart = 0;
+  
+  // Notification system
+  final NotificationBannerController _notificationController = NotificationBannerController();
+  
+  // Track abilities that were on cooldown to notify when ready
+  final Set<String> _abilitiesOnCooldown = {};
+  
   // Getters
   GameState get state => _state;
+  NotificationBannerController get notificationController => _notificationController;
+  bool get showDailyReward => _showDailyReward && !_dailyRewardClaimed;
+  DailyReward? get pendingDailyReward => _pendingDailyReward;
+  bool get canClaimDailyReward => _showDailyReward && !_dailyRewardClaimed;
+  Achievement? get currentAchievementNotification => _currentAchievementNotification;
+  bool get hasAchievementNotification => _currentAchievementNotification != null;
   bool get isInitialized => _isInitialized;
   double get offlineEarnings => _offlineEarnings;
   bool get showOfflineEarnings => _showOfflineEarnings;
   bool get showEraTransition => _showEraTransition;
   EraTransition? get pendingTransition => _pendingTransition;
+  
+  /// Get time away from game (duration since last online)
+  Duration get timeAway {
+    final now = DateTime.now();
+    return now.difference(_state.lastOnlineTime);
+  }
+  
+  /// Get current offline efficiency (base + research bonus)
+  double get offlineEfficiency => 0.5 + _state.offlineBonus;
+  
+  /// Get active expeditions
+  List<ActiveExpedition> get activeExpeditions => List.unmodifiable(_activeExpeditions);
+  
+  /// Get production boost multiplier (for time warp)
+  double get productionBoostMultiplier {
+    if (_productionBoostEndTime != null && 
+        DateTime.now().isBefore(_productionBoostEndTime!)) {
+      return _productionBoostMultiplier;
+    }
+    return 1.0;
+  }
+  
+  /// Check if production boost is active
+  bool get hasActiveBoost => 
+      _productionBoostEndTime != null && 
+      DateTime.now().isBefore(_productionBoostEndTime!);
+  
+  /// Get remaining boost time
+  Duration get boostRemainingTime {
+    if (_productionBoostEndTime == null) return Duration.zero;
+    final now = DateTime.now();
+    if (now.isAfter(_productionBoostEndTime!)) return Duration.zero;
+    return _productionBoostEndTime!.difference(now);
+  }
+  
+  /// Get ability cooldown for architect
+  AbilityCooldown? getAbilityCooldown(String architectId) {
+    return _abilityCooldowns[architectId];
+  }
+  
+  /// Check if ability is available (owned and not on cooldown)
+  bool isAbilityAvailable(String architectId) {
+    if (!_state.ownedArchitects.contains(architectId)) return false;
+    final cooldown = _abilityCooldowns[architectId];
+    if (cooldown == null) return true;
+    return !cooldown.isOnCooldown;
+  }
+  
+  /// Get current temporary cost reduction
+  double get temporaryCostReduction {
+    if (_tempCostReductionEnd != null && 
+        DateTime.now().isBefore(_tempCostReductionEnd!)) {
+      return _tempCostReduction;
+    }
+    return 0.0;
+  }
+  
+  /// Get current temporary offline bonus
+  double get temporaryOfflineBonus {
+    if (_tempOfflineBonusEnd != null && 
+        DateTime.now().isBefore(_tempOfflineBonusEnd!)) {
+      return _tempOfflineBonus;
+    }
+    return 0.0;
+  }
+  
+  /// Check if free purchase is available
+  bool get hasFreePurchase => _hasFreePurchase;
+  
+  /// Consume free purchase (used by generator buying logic)
+  void consumeFreePurchase() {
+    _hasFreePurchase = false;
+    notifyListeners();
+  }
+  
+  /// Get active challenges by duration
+  List<ActiveChallenge> getActiveChallenges(ChallengeDuration duration) {
+    _ensureChallengesInitialized();
+    if (duration == ChallengeDuration.daily) {
+      return List.unmodifiable(_dailyChallenges);
+    } else {
+      return List.unmodifiable(_weeklyChallenges);
+    }
+  }
   
   // Tap feedback
   double _tapEnergy = 0;
@@ -127,12 +266,111 @@ class GameProvider extends ChangeNotifier {
     _state.lastOnlineTime = DateTime.now();
     _isInitialized = true;
     
+    // Check daily login reward
+    _checkDailyLogin();
+    
     // Start game loops
     _startGameLoop();
     _startSaveTimer();
     _startPlayTimeTimer();
     _startAutoTapTimer();
     
+    notifyListeners();
+  }
+  
+  /// Check if player is eligible for daily login reward
+  void _checkDailyLogin() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    if (_state.lastLoginDate == null) {
+      // First ever login
+      _state.loginStreak = 1;
+      _state.totalLoginDays = 1;
+      _state.lastLoginDate = today;
+      _pendingDailyReward = getRewardForDay(1);
+      _showDailyReward = true;
+      _dailyRewardClaimed = false;
+    } else {
+      final lastLogin = DateTime(
+        _state.lastLoginDate!.year,
+        _state.lastLoginDate!.month,
+        _state.lastLoginDate!.day,
+      );
+      final daysSinceLastLogin = today.difference(lastLogin).inDays;
+      
+      if (daysSinceLastLogin == 0) {
+        // Already logged in today - no reward
+        _showDailyReward = false;
+        _dailyRewardClaimed = true;
+      } else if (daysSinceLastLogin == 1) {
+        // Consecutive day - increase streak!
+        _state.loginStreak++;
+        _state.totalLoginDays++;
+        _state.lastLoginDate = today;
+        _pendingDailyReward = getRewardForDay(_state.loginStreak);
+        _showDailyReward = true;
+        _dailyRewardClaimed = false;
+      } else {
+        // Streak broken - reset to day 1
+        _state.loginStreak = 1;
+        _state.totalLoginDays++;
+        _state.lastLoginDate = today;
+        _pendingDailyReward = getRewardForDay(1);
+        _showDailyReward = true;
+        _dailyRewardClaimed = false;
+      }
+    }
+  }
+  
+  /// Claim daily login reward
+  void claimDailyReward() {
+    if (!_showDailyReward || _dailyRewardClaimed || _pendingDailyReward == null) return;
+    
+    final reward = _pendingDailyReward!;
+    final multiplier = getStreakMultiplier(_state.totalLoginDays);
+    
+    // Apply rewards with streak multiplier
+    if (reward.energyReward > 0) {
+      final energyGain = reward.energyReward * multiplier;
+      _state.energy += energyGain;
+      _state.totalEnergyEarned += energyGain;
+    }
+    if (reward.darkMatterReward > 0) {
+      final dmGain = reward.darkMatterReward * multiplier;
+      _state.darkMatter += dmGain;
+    }
+    
+    _dailyRewardClaimed = true;
+    _showDailyReward = false;
+    
+    AudioService.playAchievement();
+    HapticService.heavyImpact();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Dismiss daily reward without claiming (still marks as seen)
+  void dismissDailyReward() {
+    _showDailyReward = false;
+    notifyListeners();
+  }
+  
+  /// Complete the tutorial
+  void completeTutorial() {
+    _state.tutorialCompleted = true;
+    // Also mark intro completed in tutorial manager
+    TutorialManager.instance.markIntroCompleted();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Reset tutorial (for testing or replay)
+  void resetTutorial() {
+    _state.tutorialCompleted = false;
+    // Also reset tutorials in tutorial manager
+    TutorialManager.instance.resetAllTutorials();
+    _saveGame();
     notifyListeners();
   }
   
@@ -155,20 +393,80 @@ class GameProvider extends ChangeNotifier {
   }
   
   /// Main game loop - updates energy every 100ms for smooth animation
+  /// Optimized: Only notify listeners every 200ms to reduce excessive rebuilds
+  int _achievementCheckCounter = 0;
+  int _challengeCheckCounter = 0;
+  int _notifyCounter = 0; // Throttle UI updates
+  double _accumulatedEnergyForChallenge = 0;
+  
   void _startGameLoop() {
     _gameLoop = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      final energyGain = _state.energyPerSecond / 10; // Per 100ms
+      // Apply production boost multiplier if active
+      final boostMultiplier = productionBoostMultiplier;
+      final energyGain = (_state.energyPerSecond * boostMultiplier) / 10; // Per 100ms
+      
       if (energyGain > 0) {
         _state.energy += energyGain;
         _state.totalEnergyEarned += energyGain;
+        _accumulatedEnergyForChallenge += energyGain;
         _state.updateKardashevLevel();
         
-        // Check for era transition milestones
-        _checkEraTransitionMilestone();
+        // Check for era transition milestones every second
+        _achievementCheckCounter++;
+        if (_achievementCheckCounter >= 10) {
+          _achievementCheckCounter = 0;
+          _checkEraTransitionMilestone();
+          checkAchievements();
+        }
         
-        notifyListeners();
+        // Update challenge progress every 2 seconds (reduced frequency)
+        _challengeCheckCounter++;
+        if (_challengeCheckCounter >= 20) {
+          _challengeCheckCounter = 0;
+          _updateChallengeProgress(ChallengeObjective.produceEnergy, _accumulatedEnergyForChallenge);
+          _updateChallengeProgress(ChallengeObjective.reachKardashev, 0);
+          _updateChallengeProgress(ChallengeObjective.playTime, 0);
+          _accumulatedEnergyForChallenge = 0;
+          
+          // Check for abilities coming off cooldown
+          _checkAbilityCooldowns();
+        }
+        
+        // Throttle UI updates to every 200ms (2 ticks) for better performance
+        _notifyCounter++;
+        if (_notifyCounter >= 2) {
+          _notifyCounter = 0;
+          notifyListeners();
+        }
       }
     });
+  }
+  
+  /// Check if any abilities have come off cooldown and send notifications
+  void _checkAbilityCooldowns() {
+    final toNotify = <String>[];
+    
+    for (final architectId in _abilitiesOnCooldown.toList()) {
+      final cooldown = _abilityCooldowns[architectId];
+      if (cooldown == null || !cooldown.isOnCooldown) {
+        // Ability is ready!
+        toNotify.add(architectId);
+        _abilitiesOnCooldown.remove(architectId);
+      }
+    }
+    
+    // Send notifications for abilities that are ready
+    for (final architectId in toNotify) {
+      final architect = getArchitectById(architectId);
+      final ability = getAbilityForArchitect(architectId);
+      if (architect != null && ability != null) {
+        _notificationController.showAbilityReady(
+          architect.name,
+          ability.name,
+          () {}, // Navigation handled by UI
+        );
+      }
+    }
   }
   
   /// Auto-tap timer based on research
@@ -283,6 +581,11 @@ class GameProvider extends ChangeNotifier {
     _state.totalTaps++;
     _tapEnergy = tapBonus;
     
+    // Track challenge progress
+    _updateChallengeProgress(ChallengeObjective.tapCount, 1);
+    _updateChallengeProgress(ChallengeObjective.produceEnergy, tapBonus);
+    
+    AudioService.playTap();
     HapticService.lightImpact();
     notifyListeners();
     
@@ -308,7 +611,11 @@ class GameProvider extends ChangeNotifier {
       _state.generatorLevels[genData.id] = 1;
     }
     
+    // Track challenge progress
+    _updateChallengeProgress(ChallengeObjective.purchaseGenerators, 1);
+    
     _state.updateKardashevLevel();
+    AudioService.playPurchase();
     HapticService.mediumImpact();
     notifyListeners();
     return true;
@@ -337,7 +644,11 @@ class GameProvider extends ChangeNotifier {
       _state.generatorLevels[genData.id] = 1;
     }
     
+    // Track challenge progress
+    _updateChallengeProgress(ChallengeObjective.purchaseGenerators, count.toDouble());
+    
     _state.updateKardashevLevel();
+    AudioService.playPurchase();
     HapticService.heavyImpact();
     notifyListeners();
     return true;
@@ -353,6 +664,7 @@ class GameProvider extends ChangeNotifier {
     _state.generatorLevels[genData.id] = (_state.generatorLevels[genData.id] ?? 1) + 1;
     
     _state.updateKardashevLevel();
+    AudioService.playPurchase();
     HapticService.mediumImpact();
     notifyListeners();
     return true;
@@ -395,13 +707,19 @@ class GameProvider extends ChangeNotifier {
     _state.productionBonus = totalBonus;
   }
   
+  /// Get current synthesis cost (starts at 50, +50 per owned architect)
+  double getSynthesisCost() {
+    return 50.0 + (_state.ownedArchitects.length * 50.0);
+  }
+  
   /// Synthesize (unlock) a new architect using dark matter
-  bool synthesizeArchitect() {
-    const cost = 100.0; // Dark matter cost
+  /// [eraArchitects] - the list of architects available for the current era
+  bool synthesizeArchitect(List<Architect> eraArchitects) {
+    final cost = getSynthesisCost();
     if (_state.darkMatter < cost) return false;
     
-    // Get available architects not yet owned
-    final available = eraIArchitects
+    // Get available architects not yet owned from the provided era pool
+    final available = eraArchitects
         .where((a) => !_state.ownedArchitects.contains(a.id))
         .toList();
     
@@ -446,6 +764,538 @@ class GameProvider extends ChangeNotifier {
     final bonusAmount = amount * (1 + _state.darkMatterBonus);
     _state.darkMatter += bonusAmount;
     notifyListeners();
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // EXPEDITION SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Start an expedition with assigned architects
+  bool startExpedition(String expeditionId, List<String> architectIds) {
+    final expedition = getExpeditionById(expeditionId);
+    if (expedition == null) return false;
+    
+    // Validate architect count
+    if (architectIds.length < expedition.minArchitects ||
+        architectIds.length > expedition.maxArchitects) {
+      return false;
+    }
+    
+    // Check if expedition is already active
+    if (_activeExpeditions.any((a) => a.expeditionId == expeditionId)) {
+      return false;
+    }
+    
+    // Check if architects are available
+    final onExpedition = <String>{};
+    for (final active in _activeExpeditions) {
+      onExpedition.addAll(active.assignedArchitectIds);
+    }
+    for (final id in architectIds) {
+      if (onExpedition.contains(id)) return false;
+      if (!_state.ownedArchitects.contains(id)) return false;
+    }
+    
+    // Start expedition
+    final now = DateTime.now();
+    final active = ActiveExpedition(
+      expeditionId: expeditionId,
+      assignedArchitectIds: architectIds,
+      startTime: now,
+      endTime: now.add(Duration(minutes: expedition.durationMinutes)),
+    );
+    
+    _activeExpeditions.add(active);
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Complete an expedition and collect rewards
+  ExpeditionResult? completeExpedition(String expeditionId) {
+    final activeIndex = _activeExpeditions.indexWhere(
+      (a) => a.expeditionId == expeditionId,
+    );
+    if (activeIndex == -1) return null;
+    
+    final active = _activeExpeditions[activeIndex];
+    if (!active.canCollect) return null;
+    
+    final expedition = getExpeditionById(expeditionId);
+    if (expedition == null) return null;
+    
+    // Calculate success rate
+    double successRate = expedition.successRateBase;
+    for (final architectId in active.assignedArchitectIds) {
+      final architect = getArchitectById(architectId);
+      if (architect == null) continue;
+      
+      // Rarity bonus
+      switch (architect.rarity) {
+        case ArchitectRarity.common:
+          successRate += 0.05;
+        case ArchitectRarity.rare:
+          successRate += 0.10;
+        case ArchitectRarity.epic:
+          successRate += 0.15;
+        case ArchitectRarity.legendary:
+          successRate += 0.20;
+      }
+      
+      // Preferred architect bonus
+      if (expedition.preferredArchitectId == architectId) {
+        successRate += 0.25;
+      }
+      
+      // Preferred rarity bonus
+      if (expedition.preferredRarity == architect.rarity) {
+        successRate += 0.10;
+      }
+    }
+    successRate = successRate.clamp(0.0, 0.99);
+    
+    // Determine success
+    final random = Random();
+    final success = random.nextDouble() < successRate;
+    
+    // Calculate rewards
+    final rewards = <ExpeditionReward>[];
+    String message;
+    
+    if (success) {
+      // Add base rewards
+      rewards.addAll(expedition.baseRewards);
+      
+      // Chance for bonus rewards
+      if (expedition.bonusRewards.isNotEmpty && random.nextDouble() < 0.3) {
+        rewards.addAll(expedition.bonusRewards);
+        message = 'Mission completed with bonus rewards!';
+      } else {
+        message = 'Mission completed successfully!';
+      }
+      
+      // Apply rewards
+      for (final reward in rewards) {
+        switch (reward.type) {
+          case ExpeditionRewardType.energy:
+            _state.energy += reward.amount;
+            _state.totalEnergyEarned += reward.amount;
+          case ExpeditionRewardType.darkMatter:
+            _state.darkMatter += reward.amount * (1 + _state.darkMatterBonus);
+          case ExpeditionRewardType.researchBoost:
+            _state.researchSpeedBonus += reward.amount;
+            // TODO: Make temporary
+          case ExpeditionRewardType.productionBoost:
+            _applyProductionBoost(1 + reward.amount, const Duration(hours: 1));
+          case ExpeditionRewardType.architectXP:
+            // TODO: Implement architect XP system
+            break;
+        }
+      }
+    } else {
+      // Mission failed - partial rewards
+      if (random.nextDouble() < 0.5) {
+        // 50% chance to get partial rewards
+        final partialReward = ExpeditionReward(
+          type: ExpeditionRewardType.energy,
+          amount: expedition.baseRewards
+              .where((r) => r.type == ExpeditionRewardType.energy)
+              .fold(0.0, (a, b) => a + b.amount) * 0.25,
+          description: 'Partial energy recovered',
+        );
+        rewards.add(partialReward);
+        _state.energy += partialReward.amount;
+        _state.totalEnergyEarned += partialReward.amount;
+        message = 'Mission failed, but recovered some resources.';
+      } else {
+        message = 'Mission failed. The team returns empty-handed.';
+      }
+    }
+    
+    // Remove expedition
+    _activeExpeditions.removeAt(activeIndex);
+    
+    // Track challenge progress
+    _updateChallengeProgress(ChallengeObjective.completeExpedition, 1);
+    
+    // Send notification
+    if (success) {
+      final rewardSummary = rewards.isNotEmpty 
+          ? 'Rewards: ${rewards.map((r) => r.description).join(', ')}'
+          : '';
+      _notificationController.showExpeditionComplete(
+        expedition.name,
+        rewardSummary,
+        () {}, // Navigation handled by caller
+      );
+    } else {
+      _notificationController.showExpeditionFailed(
+        expedition.name,
+        () {},
+      );
+    }
+    
+    _saveGame();
+    notifyListeners();
+    
+    return ExpeditionResult(
+      success: success,
+      rewards: rewards,
+      successRate: successRate,
+      message: message,
+    );
+  }
+  
+  /// Cancel an active expedition (forfeits all progress)
+  void cancelExpedition(String expeditionId) {
+    _activeExpeditions.removeWhere((a) => a.expeditionId == expeditionId);
+    _saveGame();
+    notifyListeners();
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRODUCTION BOOST / TIME WARP
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Apply a temporary production boost
+  void _applyProductionBoost(double multiplier, Duration duration) {
+    _productionBoostMultiplier = multiplier;
+    _productionBoostEndTime = DateTime.now().add(duration);
+    notifyListeners();
+  }
+  
+  /// Activate time warp (costs dark matter)
+  bool activateTimeWarp({int hours = 1}) {
+    final cost = hours * 20.0; // 20 DM per hour
+    if (_state.darkMatter < cost) return false;
+    
+    _state.darkMatter -= cost;
+    
+    // Calculate energy gain
+    final energyGain = _state.energyPerSecond * 3600 * hours;
+    _state.energy += energyGain;
+    _state.totalEnergyEarned += energyGain;
+    
+    HapticService.heavyImpact();
+    AudioService.playPurchase();
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Activate production boost (from ads or purchase)
+  void activateProductionBoost(double multiplier, Duration duration) {
+    _applyProductionBoost(multiplier, duration);
+    HapticService.mediumImpact();
+    _saveGame();
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // ARCHITECT ACTIVE ABILITIES
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Activate an architect's special ability
+  /// Returns a message describing the result, or null if failed
+  String? activateAbility(String architectId) {
+    // Check if architect is owned
+    if (!_state.ownedArchitects.contains(architectId)) {
+      return null;
+    }
+    
+    // Check if ability exists
+    final ability = getAbilityForArchitect(architectId);
+    if (ability == null) {
+      return null;
+    }
+    
+    // Check cooldown
+    final existingCooldown = _abilityCooldowns[architectId];
+    if (existingCooldown != null && existingCooldown.isOnCooldown) {
+      final remaining = existingCooldown.remainingCooldown;
+      final hours = remaining.inHours;
+      final minutes = remaining.inMinutes % 60;
+      return 'Ability on cooldown: ${hours}h ${minutes}m remaining';
+    }
+    
+    // Apply the ability effect
+    String resultMessage;
+    switch (ability.effectType) {
+      case AbilityEffectType.instantEnergy:
+        // Give instant energy based on current production rate
+        final energyGain = _state.energyPerSecond * ability.effectValue;
+        _state.energy += energyGain;
+        _state.totalEnergyEarned += energyGain;
+        resultMessage = '${ability.name} activated! +${GameProvider.formatNumber(energyGain)} energy!';
+        
+      case AbilityEffectType.productionMultiplier:
+        // Apply production multiplier for duration
+        _applyProductionBoost(ability.effectValue, Duration(minutes: ability.durationMinutes));
+        resultMessage = '${ability.name} activated! ${ability.effectValue}x production for ${ability.durationMinutes} minutes!';
+        
+      case AbilityEffectType.offlineBonus:
+        // Apply temporary offline bonus
+        _tempOfflineBonus = ability.effectValue;
+        _tempOfflineBonusEnd = DateTime.now().add(Duration(minutes: ability.durationMinutes));
+        resultMessage = '${ability.name} activated! +${(ability.effectValue * 100).toInt()}% offline earnings for ${ability.durationMinutes ~/ 60} hours!';
+        
+      case AbilityEffectType.costReduction:
+        // Apply temporary cost reduction
+        _tempCostReduction = ability.effectValue;
+        _tempCostReductionEnd = DateTime.now().add(Duration(minutes: ability.durationMinutes));
+        resultMessage = '${ability.name} activated! -${(ability.effectValue * 100).toInt()}% costs for ${ability.durationMinutes} minutes!';
+        
+      case AbilityEffectType.instantResearch:
+        // Complete current research instantly
+        if (_currentResearchId == null) {
+          // Refund - no research in progress
+          return 'No research in progress! Ability not activated.';
+        }
+        // Fast-forward research progress
+        _researchProgress = _researchTotal;
+        resultMessage = '${ability.name} activated! Research completed instantly!';
+        
+      case AbilityEffectType.instantPurchase:
+        // Grant a free purchase
+        _hasFreePurchase = true;
+        resultMessage = '${ability.name} activated! Your next generator purchase is FREE!';
+        
+      case AbilityEffectType.unlockGenerator:
+        // Reduce unlock requirements temporarily
+        // This is handled by checking temporaryUnlockReduction in generator unlock logic
+        _tempCostReduction = ability.effectValue; // Reuse for unlock reduction
+        _tempCostReductionEnd = DateTime.now().add(Duration(minutes: ability.durationMinutes));
+        resultMessage = '${ability.name} activated! Generator unlock requirements reduced by ${(ability.effectValue * 100).toInt()}% for ${ability.durationMinutes} minutes!';
+    }
+    
+    // Record cooldown
+    _abilityCooldowns[architectId] = AbilityCooldown(
+      architectId: architectId,
+      lastUsed: DateTime.now(),
+      cooldownMinutes: ability.cooldownMinutes,
+    );
+    
+    // Track that this ability is on cooldown for notification when ready
+    _abilitiesOnCooldown.add(architectId);
+    
+    // Track challenge progress
+    _updateChallengeProgress(ChallengeObjective.useAbility, 1);
+    
+    // Play effects
+    HapticService.heavyImpact();
+    AudioService.playPurchase();
+    
+    _saveGame();
+    notifyListeners();
+    
+    return resultMessage;
+  }
+  
+  /// Get formatted cooldown time for an architect's ability
+  String getAbilityCooldownText(String architectId) {
+    final cooldown = _abilityCooldowns[architectId];
+    if (cooldown == null || !cooldown.isOnCooldown) {
+      return 'Ready';
+    }
+    
+    final remaining = cooldown.remainingCooldown;
+    if (remaining.inHours > 0) {
+      return '${remaining.inHours}h ${remaining.inMinutes % 60}m';
+    } else if (remaining.inMinutes > 0) {
+      return '${remaining.inMinutes}m ${remaining.inSeconds % 60}s';
+    } else {
+      return '${remaining.inSeconds}s';
+    }
+  }
+  
+  /// Get cooldown progress (0.0 = just used, 1.0 = ready)
+  double getAbilityCooldownProgress(String architectId) {
+    final cooldown = _abilityCooldowns[architectId];
+    if (cooldown == null) return 1.0;
+    return cooldown.cooldownProgress.clamp(0.0, 1.0);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // CHALLENGES/CONTRACTS SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Ensure challenges are initialized and not expired
+  void _ensureChallengesInitialized() {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    
+    // Check if daily challenges need reset
+    if (_lastDailyChallengeReset == null || 
+        _lastDailyChallengeReset!.isBefore(today)) {
+      _initializeDailyChallenges();
+      _lastDailyChallengeReset = today;
+    }
+    
+    // Check if weekly challenges need reset (Monday)
+    final thisWeekStart = today.subtract(Duration(days: today.weekday - 1));
+    if (_lastWeeklyChallengeReset == null ||
+        _lastWeeklyChallengeReset!.isBefore(thisWeekStart)) {
+      _initializeWeeklyChallenges();
+      _lastWeeklyChallengeReset = thisWeekStart;
+    }
+  }
+  
+  /// Initialize daily challenges
+  void _initializeDailyChallenges() {
+    final now = DateTime.now();
+    final endOfDay = DateTime(now.year, now.month, now.day + 1);
+    final seed = _state.prestigeCount;
+    
+    final challenges = generateDailyChallenges(seed);
+    _dailyChallenges = challenges.map((c) => ActiveChallenge(
+      challenge: c,
+      startTime: now,
+      endTime: endOfDay,
+    )).toList();
+    
+    // Reset session counters
+    _resetSessionCounters();
+    
+    // Send notification about new daily challenges
+    if (_isInitialized) {
+      _notificationController.showDailyChallengeReset(
+        _dailyChallenges.length,
+        () {},
+      );
+    }
+  }
+  
+  /// Initialize weekly challenges
+  void _initializeWeeklyChallenges() {
+    final now = DateTime.now();
+    final daysUntilMonday = (8 - now.weekday) % 7;
+    final nextMonday = DateTime(now.year, now.month, now.day + (daysUntilMonday == 0 ? 7 : daysUntilMonday));
+    final seed = _state.prestigeCount;
+    
+    final challenges = generateWeeklyChallenges(seed);
+    _weeklyChallenges = challenges.map((c) => ActiveChallenge(
+      challenge: c,
+      startTime: now,
+      endTime: nextMonday,
+    )).toList();
+    
+    // Store starting Kardashev for weekly progress
+    _sessionKardashevStart = _state.kardashevLevel;
+    
+    // Send notification about new weekly challenges
+    if (_isInitialized) {
+      _notificationController.showWeeklyChallengeReset(
+        _weeklyChallenges.length,
+        () {},
+      );
+    }
+  }
+  
+  /// Reset session counters for challenge tracking
+  void _resetSessionCounters() {
+    // Reset Kardashev start point for weekly challenge tracking
+    _sessionKardashevStart = _state.kardashevLevel;
+  }
+  
+  /// Update challenge progress based on objective type
+  void _updateChallengeProgress(ChallengeObjective objective, double amount) {
+    _ensureChallengesInitialized();
+    
+    // Update daily challenges
+    for (final challenge in _dailyChallenges) {
+      if (challenge.challenge.objective == objective && !challenge.isClaimed) {
+        _applyChallengeProgress(challenge, objective, amount);
+      }
+    }
+    
+    // Update weekly challenges
+    for (final challenge in _weeklyChallenges) {
+      if (challenge.challenge.objective == objective && !challenge.isClaimed) {
+        _applyChallengeProgress(challenge, objective, amount);
+      }
+    }
+  }
+  
+  /// Apply progress to a specific challenge
+  void _applyChallengeProgress(ActiveChallenge challenge, ChallengeObjective objective, double amount) {
+    switch (objective) {
+      case ChallengeObjective.produceEnergy:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.purchaseGenerators:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.earnDarkMatter:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.completeResearch:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.tapCount:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.reachKardashev:
+        // For Kardashev, track increase from session start
+        final increase = _state.kardashevLevel - _sessionKardashevStart;
+        challenge.updateProgress(increase);
+      case ChallengeObjective.completeExpedition:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.useAbility:
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.playTime:
+        challenge.updateProgress(_state.playTimeSeconds / 60);
+    }
+  }
+  
+  /// Claim a completed challenge reward
+  bool claimChallengeReward(ActiveChallenge activeChallenge) {
+    if (!activeChallenge.isCompleted || activeChallenge.isClaimed) {
+      return false;
+    }
+    
+    // Apply rewards
+    for (final reward in activeChallenge.challenge.rewards) {
+      switch (reward.type) {
+        case ChallengeRewardType.energy:
+          _state.energy += reward.amount;
+          _state.totalEnergyEarned += reward.amount;
+        case ChallengeRewardType.darkMatter:
+          _state.darkMatter += reward.amount * (1 + _state.darkMatterBonus);
+        case ChallengeRewardType.productionBoost:
+          _applyProductionBoost(reward.amount, const Duration(minutes: 30));
+        case ChallengeRewardType.timeWarp:
+          // Give instant energy equivalent to X hours of production
+          final energyGain = _state.energyPerSecond * 3600 * reward.amount;
+          _state.energy += energyGain;
+          _state.totalEnergyEarned += energyGain;
+      }
+    }
+    
+    activeChallenge.isClaimed = true;
+    
+    // Send notification
+    final rewardDesc = activeChallenge.challenge.rewards
+        .map((r) => r.type.name)
+        .join(', ');
+    _notificationController.showChallengeComplete(
+      activeChallenge.challenge.name,
+      rewardDesc,
+      () {},
+    );
+    
+    AudioService.playAchievement();
+    HapticService.heavyImpact();
+    _saveGame();
+    notifyListeners();
+    
+    return true;
+  }
+  
+  /// Get count of unclaimed completed challenges
+  int get unclaimedChallengeCount {
+    _ensureChallengesInitialized();
+    int count = 0;
+    for (final c in _dailyChallenges) {
+      if (c.isCompleted && !c.isClaimed) count++;
+    }
+    for (final c in _weeklyChallenges) {
+      if (c.isCompleted && !c.isClaimed) count++;
+    }
+    return count;
   }
   
   // Research System V2
@@ -572,9 +1422,13 @@ class GameProvider extends ChangeNotifier {
     // Apply research effects
     _applyResearchEffectV2(research.effect);
     
+    // Track challenge progress
+    _updateChallengeProgress(ChallengeObjective.completeResearch, 1);
+    
     // Clear research state
     _clearResearchState();
     
+    AudioService.playResearchComplete();
     HapticService.heavyImpact();
     _saveGame();
     notifyListeners();
@@ -674,6 +1528,9 @@ class GameProvider extends ChangeNotifier {
     // Base calculation on total energy earned this run
     final currentRunEnergy = _state.totalEnergyEarned;
     
+    // Edge case: No energy earned
+    if (currentRunEnergy <= 0) return 0;
+    
     // Cube root formula for diminishing returns (like Soul Eggs in Egg Inc)
     // Scale factor adjusts for game balance
     final scaleFactor = _state.kardashevLevel < 1.0 ? 0.5 :
@@ -685,7 +1542,11 @@ class GameProvider extends ChangeNotifier {
     // Ensure minimum reward based on Kardashev level reached
     final minReward = _state.kardashevLevel * 10;
     
-    return max(reward, minReward);
+    // Guard against NaN/Infinity
+    final finalReward = max(reward, minReward);
+    if (finalReward.isNaN || finalReward.isInfinite) return minReward;
+    
+    return finalReward;
   }
   
   /// Calculate production bonus from Dark Matter
@@ -733,6 +1594,7 @@ class GameProvider extends ChangeNotifier {
       unlockedEras: preservedUnlockedEras, // Keep eras unlocked
     );
     
+    AudioService.playPrestige();
     HapticService.heavyImpact();
     _saveGame();
     notifyListeners();
@@ -745,11 +1607,16 @@ class GameProvider extends ChangeNotifier {
     
     final darkMatterReward = calculateDarkMatterReward();
     final totalDarkMatter = _state.darkMatter + darkMatterReward;
-    final newProductionBonus = calculateProductionBonusFromDarkMatter(totalDarkMatter);
-    final bonusGain = newProductionBonus - _state.prestigeBonus;
+    
+    // Calculate production bonus from dark matter only (not including research bonuses)
+    // Current bonus from current dark matter
+    final currentDarkMatterBonus = calculateProductionBonusFromDarkMatter(_state.darkMatter);
+    // New bonus from total dark matter after prestige
+    final newDarkMatterBonus = calculateProductionBonusFromDarkMatter(totalDarkMatter);
+    // The gain is the difference between new and current dark matter bonuses
+    final bonusGain = newDarkMatterBonus - currentDarkMatterBonus;
     
     // Get tier name for display
-    final tierIndex = min(_state.prestigeTier, prestigeTiers.length - 1);
     final nextTierIndex = min(_state.prestigeTier + 1, prestigeTiers.length - 1);
     final tierName = prestigeTiers[nextTierIndex].name;
     
@@ -757,7 +1624,7 @@ class GameProvider extends ChangeNotifier {
       darkMatterReward: darkMatterReward,
       productionBonusGain: bonusGain,
       totalDarkMatter: totalDarkMatter,
-      totalProductionBonus: newProductionBonus,
+      totalProductionBonus: newDarkMatterBonus,
       tierName: tierName,
       requiredKardashev: 0.3,
     );
@@ -768,9 +1635,13 @@ class GameProvider extends ChangeNotifier {
     return getCurrentPrestigeTier(_state.prestigeTier);
   }
   
-  /// Format large numbers
+  /// Format large numbers with edge case handling
   static String formatNumber(double value) {
+    // Edge case handling for NaN, Infinity, and negative values
     if (value.isNaN || value.isInfinite) return '0';
+    if (value < 0) return '-${formatNumber(-value)}';
+    if (value == 0) return '0';
+    
     if (value < 1000) return value.toStringAsFixed(1);
     if (value < 1000000) return '${(value / 1000).toStringAsFixed(2)}K';
     if (value < 1000000000) return '${(value / 1000000).toStringAsFixed(2)}M';
@@ -789,6 +1660,243 @@ class GameProvider extends ChangeNotifier {
     if (seconds < 60) return '${seconds}s';
     if (seconds < 3600) return '${seconds ~/ 60}m ${seconds % 60}s';
     return '${seconds ~/ 3600}h ${(seconds % 3600) ~/ 60}m';
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // ACHIEVEMENTS SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Check all achievements and unlock newly earned ones
+  void checkAchievements() {
+    for (final achievement in allAchievements) {
+      if (_state.unlockedAchievements.contains(achievement.id)) continue;
+      
+      if (_checkAchievementCondition(achievement.condition)) {
+        _unlockAchievement(achievement);
+      }
+    }
+  }
+  
+  /// Check if a specific achievement condition is met
+  bool _checkAchievementCondition(AchievementCondition condition) {
+    switch (condition.type) {
+      case ConditionType.totalEnergy:
+        return _state.totalEnergyEarned >= condition.targetValue;
+      case ConditionType.energyPerSecond:
+        return _state.energyPerSecond >= condition.targetValue;
+      case ConditionType.totalGenerators:
+        return _state.totalGenerators >= condition.targetValue;
+      case ConditionType.specificGenerator:
+        return (_state.generators[condition.targetId] ?? 0) >= condition.targetValue;
+      case ConditionType.kardashevLevel:
+        return _state.kardashevLevel >= condition.targetValue;
+      case ConditionType.totalTaps:
+        return _state.totalTaps >= condition.targetValue;
+      case ConditionType.researchCompleted:
+        return _state.completedResearchCount >= condition.targetValue;
+      case ConditionType.prestigeCount:
+        return _state.prestigeCount >= condition.targetValue;
+      case ConditionType.darkMatter:
+        return _state.darkMatter >= condition.targetValue;
+      case ConditionType.playTime:
+        return _state.playTimeSeconds >= condition.targetValue;
+      case ConditionType.eraUnlocked:
+        return _state.unlockedEras.length > condition.targetValue;
+      case ConditionType.architectOwned:
+        return _state.ownedArchitects.length >= condition.targetValue;
+    }
+  }
+  
+  /// Unlock an achievement
+  void _unlockAchievement(Achievement achievement) {
+    if (_state.unlockedAchievements.contains(achievement.id)) return;
+    
+    _state.unlockedAchievements.add(achievement.id);
+    _pendingAchievementNotifications.add(achievement);
+    
+    // Show next notification if none is showing
+    if (_currentAchievementNotification == null) {
+      _showNextAchievementNotification();
+    }
+    
+    // Play sound
+    AudioService.playAchievement();
+    HapticService.heavyImpact();
+    
+    notifyListeners();
+  }
+  
+  /// Show next achievement notification
+  void _showNextAchievementNotification() {
+    if (_pendingAchievementNotifications.isNotEmpty) {
+      _currentAchievementNotification = _pendingAchievementNotifications.removeAt(0);
+      notifyListeners();
+    }
+  }
+  
+  /// Dismiss current achievement notification
+  void dismissAchievementNotification() {
+    _currentAchievementNotification = null;
+    notifyListeners();
+    
+    // Show next after a small delay
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _showNextAchievementNotification();
+    });
+  }
+  
+  /// Claim achievement rewards
+  bool claimAchievement(String achievementId) {
+    if (!_state.unlockedAchievements.contains(achievementId)) return false;
+    if (_state.claimedAchievements.contains(achievementId)) return false;
+    
+    final achievement = getAchievementById(achievementId);
+    if (achievement == null) return false;
+    
+    // Grant rewards
+    if (achievement.energyReward > 0) {
+      _state.energy += achievement.energyReward;
+      _state.totalEnergyEarned += achievement.energyReward;
+    }
+    if (achievement.darkMatterReward > 0) {
+      _state.darkMatter += achievement.darkMatterReward;
+    }
+    
+    _state.claimedAchievements.add(achievementId);
+    
+    AudioService.playPurchase();
+    HapticService.mediumImpact();
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Get achievement progress (0.0 - 1.0)
+  double getAchievementProgress(Achievement achievement) {
+    if (_state.unlockedAchievements.contains(achievement.id)) return 1.0;
+    
+    final condition = achievement.condition;
+    double currentValue = 0;
+    
+    switch (condition.type) {
+      case ConditionType.totalEnergy:
+        currentValue = _state.totalEnergyEarned;
+        break;
+      case ConditionType.energyPerSecond:
+        currentValue = _state.energyPerSecond;
+        break;
+      case ConditionType.totalGenerators:
+        currentValue = _state.totalGenerators.toDouble();
+        break;
+      case ConditionType.specificGenerator:
+        currentValue = (_state.generators[condition.targetId] ?? 0).toDouble();
+        break;
+      case ConditionType.kardashevLevel:
+        currentValue = _state.kardashevLevel;
+        break;
+      case ConditionType.totalTaps:
+        currentValue = _state.totalTaps.toDouble();
+        break;
+      case ConditionType.researchCompleted:
+        currentValue = _state.completedResearchCount.toDouble();
+        break;
+      case ConditionType.prestigeCount:
+        currentValue = _state.prestigeCount.toDouble();
+        break;
+      case ConditionType.darkMatter:
+        currentValue = _state.darkMatter;
+        break;
+      case ConditionType.playTime:
+        currentValue = _state.playTimeSeconds.toDouble();
+        break;
+      case ConditionType.eraUnlocked:
+        currentValue = (_state.unlockedEras.length - 1).toDouble();
+        break;
+      case ConditionType.architectOwned:
+        currentValue = _state.ownedArchitects.length.toDouble();
+        break;
+    }
+    
+    return (currentValue / condition.targetValue).clamp(0.0, 1.0);
+  }
+  
+  /// Check if achievement is claimed
+  bool isAchievementClaimed(String achievementId) {
+    return _state.claimedAchievements.contains(achievementId);
+  }
+  
+  /// Check if achievement is unlocked
+  bool isAchievementUnlocked(String achievementId) {
+    return _state.unlockedAchievements.contains(achievementId);
+  }
+  
+  /// Get count of unlocked achievements
+  int get unlockedAchievementCount => _state.unlockedAchievements.length;
+  
+  /// Get count of claimed achievements
+  int get claimedAchievementCount => _state.claimedAchievements.length;
+  
+  /// Get unclaimed achievement count
+  int get unclaimedAchievementCount => 
+      _state.unlockedAchievements.length - _state.claimedAchievements.length;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // SETTINGS
+  // ═══════════════════════════════════════════════════════════════
+  
+  void toggleSound() {
+    _state.soundEnabled = !_state.soundEnabled;
+    AudioService.setEnabled(_state.soundEnabled);
+    _saveGame();
+    notifyListeners();
+  }
+  
+  void toggleHaptics() {
+    _state.hapticsEnabled = !_state.hapticsEnabled;
+    HapticService.setEnabled(_state.hapticsEnabled);
+    _saveGame();
+    notifyListeners();
+  }
+  
+  void toggleNotifications() {
+    _state.notificationsEnabled = !_state.notificationsEnabled;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Reset game progress
+  Future<void> resetProgress() async {
+    // Cancel all timers
+    _gameLoop?.cancel();
+    _saveTimer?.cancel();
+    _playTimeTimer?.cancel();
+    _autoTapTimer?.cancel();
+    _researchTimer?.cancel();
+    
+    // Clear state
+    _state = GameState(
+      energy: 50,
+      generators: {'wind_turbine': 1},
+      generatorLevels: {'wind_turbine': 1},
+      unlockedEras: [0],
+      soundEnabled: _state.soundEnabled,
+      hapticsEnabled: _state.hapticsEnabled,
+      notificationsEnabled: _state.notificationsEnabled,
+    );
+    
+    // Clear and save
+    if (_gameBox != null) {
+      await _gameBox!.clear();
+      await _gameBox!.add(_state);
+    }
+    
+    // Restart timers
+    _startGameLoop();
+    _startSaveTimer();
+    _startPlayTimeTimer();
+    _startAutoTapTimer();
+    
+    notifyListeners();
   }
   
   /// Cleanup

@@ -45,13 +45,21 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       researchStartTime: fields[25] as DateTime?,
       currentResearchIdPersisted: fields[26] as String?,
       researchTotalPersisted: fields[27] == null ? 0 : fields[27] as int,
+      unlockedAchievements: (fields[28] as List?)?.cast<String>(),
+      claimedAchievements: (fields[29] as List?)?.cast<String>(),
+      soundEnabled: fields[30] == null ? true : fields[30] as bool,
+      hapticsEnabled: fields[31] == null ? true : fields[31] as bool,
+      notificationsEnabled: fields[32] == null ? true : fields[32] as bool,
+      lastLoginDate: fields[33] as DateTime?,
+      loginStreak: fields[34] == null ? 0 : fields[34] as int,
+      totalLoginDays: fields[35] == null ? 0 : fields[35] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(28)
+      ..writeByte(36)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -107,7 +115,23 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(26)
       ..write(obj.currentResearchIdPersisted)
       ..writeByte(27)
-      ..write(obj.researchTotalPersisted);
+      ..write(obj.researchTotalPersisted)
+      ..writeByte(28)
+      ..write(obj.unlockedAchievements)
+      ..writeByte(29)
+      ..write(obj.claimedAchievements)
+      ..writeByte(30)
+      ..write(obj.soundEnabled)
+      ..writeByte(31)
+      ..write(obj.hapticsEnabled)
+      ..writeByte(32)
+      ..write(obj.notificationsEnabled)
+      ..writeByte(33)
+      ..write(obj.lastLoginDate)
+      ..writeByte(34)
+      ..write(obj.loginStreak)
+      ..writeByte(35)
+      ..write(obj.totalLoginDays);
   }
 
   @override

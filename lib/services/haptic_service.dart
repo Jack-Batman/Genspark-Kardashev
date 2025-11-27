@@ -9,6 +9,11 @@ class HapticService {
   static bool get enabled => _enabled;
   static set enabled(bool value) => _enabled = value;
   
+  /// Set haptic feedback enabled state
+  static void setEnabled(bool enabled) {
+    _enabled = enabled;
+  }
+  
   /// Light tap - for UI interactions
   static void lightImpact() {
     if (!_enabled || kIsWeb) return;

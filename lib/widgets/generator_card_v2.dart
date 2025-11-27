@@ -1,9 +1,14 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import '../core/era_data.dart';
 import '../providers/game_provider.dart';
+import '../services/audio_service.dart';
 
-/// Generator Card V2 - Supports all eras
-class GeneratorCardV2 extends StatelessWidget {
+/// Buy amount options
+enum BuyAmount { x1, x10, x100, max }
+
+/// Generator Card V2 - Supports all eras with bulk buy
+class GeneratorCardV2 extends StatefulWidget {
   final GeneratorDataV2 genData;
   final GameProvider gameProvider;
   final EraConfig eraConfig;
@@ -20,26 +25,85 @@ class GeneratorCardV2 extends StatelessWidget {
   });
 
   @override
+  State<GeneratorCardV2> createState() => _GeneratorCardV2State();
+}
+
+class _GeneratorCardV2State extends State<GeneratorCardV2> {
+  static BuyAmount _selectedAmount = BuyAmount.x1; // Shared across all cards
+
+  int _getBuyCount() {
+    switch (_selectedAmount) {
+      case BuyAmount.x1:
+        return 1;
+      case BuyAmount.x10:
+        return 10;
+      case BuyAmount.x100:
+        return 100;
+      case BuyAmount.max:
+        return _calculateMaxBuy();
+    }
+  }
+
+  int _calculateMaxBuy() {
+    final state = widget.gameProvider.state;
+    double available = state.energy;
+    int count = state.getGeneratorCount(widget.genData.id);
+    int canBuy = 0;
+    
+    while (canBuy < 1000) { // Cap at 1000 to prevent infinite loops
+      final cost = widget.genData.baseCost * 
+          pow(widget.genData.costMultiplier, count + canBuy) *
+          (1 - state.costReductionBonus);
+      if (available >= cost) {
+        available -= cost;
+        canBuy++;
+      } else {
+        break;
+      }
+    }
+    
+    return max(1, canBuy);
+  }
+
+  double _calculateBulkCost(int amount) {
+    final state = widget.gameProvider.state;
+    int currentCount = state.getGeneratorCount(widget.genData.id);
+    double totalCost = 0;
+    
+    for (int i = 0; i < amount; i++) {
+      totalCost += widget.genData.baseCost * 
+          pow(widget.genData.costMultiplier, currentCount + i) *
+          (1 - state.costReductionBonus);
+    }
+    
+    return totalCost;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final count = gameProvider.state.getGeneratorCount(genData.id);
-    final level = gameProvider.state.getGeneratorLevel(genData.id);
-    final cost = gameProvider.state.getGeneratorCost(genData);
-    final upgradeCost = gameProvider.state.getUpgradeCost(genData);
-    final canBuy = gameProvider.state.energy >= cost;
-    final canUpgrade = count > 0 && gameProvider.state.energy >= upgradeCost;
-    final isUnlocked = gameProvider.state.isGeneratorUnlocked(genData);
+    final count = widget.gameProvider.state.getGeneratorCount(widget.genData.id);
+    final level = widget.gameProvider.state.getGeneratorLevel(widget.genData.id);
+    final buyCount = _getBuyCount();
+    final bulkCost = _calculateBulkCost(buyCount);
+    final upgradeCost = widget.gameProvider.state.getUpgradeCost(widget.genData);
+    final canBuy = widget.gameProvider.state.energy >= bulkCost;
+    final canUpgrade = count > 0 && widget.gameProvider.state.energy >= upgradeCost;
+    final isUnlocked = widget.gameProvider.state.isGeneratorUnlocked(widget.genData);
     
     // Calculate production for this generator
-    final production = genData.baseProduction * 
+    final production = widget.genData.baseProduction * 
         count * 
         (1 + (level - 1) * 0.1) * 
-        gameProvider.state.energyMultiplier *
-        (1 + gameProvider.state.productionBonus) *
-        (1 + gameProvider.state.prestigeBonus);
+        widget.gameProvider.state.energyMultiplier *
+        (1 + widget.gameProvider.state.productionBonus) *
+        (1 + widget.gameProvider.state.prestigeBonus);
 
     if (!isUnlocked) {
       return _buildLockedCard();
     }
+    
+    final eraConfig = widget.eraConfig;
+    final genData = widget.genData;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -193,16 +257,30 @@ class GeneratorCardV2 extends StatelessWidget {
             // Buttons
             Column(
               children: [
-                // Buy button
+                // Bulk buy selector
+                _BulkBuySelector(
+                  selectedAmount: _selectedAmount,
+                  onChanged: (amount) => setState(() => _selectedAmount = amount),
+                  color: eraConfig.primaryColor,
+                ),
+                const SizedBox(height: 6),
+                // Buy button with amount
                 _ActionButton(
-                  text: GameProvider.formatNumber(cost),
+                  text: '${buyCount > 1 ? "x$buyCount " : ""}${GameProvider.formatNumber(bulkCost)}',
                   icon: Icons.add,
                   enabled: canBuy,
                   color: eraConfig.primaryColor,
-                  onPressed: canBuy ? onBuy : null,
+                  onPressed: canBuy ? () {
+                    if (buyCount == 1) {
+                      widget.onBuy();
+                    } else {
+                      widget.gameProvider.buyGeneratorBulkV2(genData, buyCount);
+                    }
+                    AudioService.playPurchase();
+                  } : null,
                 ),
                 if (count > 0) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   // Upgrade button
                   _ActionButton(
                     text: GameProvider.formatNumber(upgradeCost),
@@ -210,7 +288,10 @@ class GeneratorCardV2 extends StatelessWidget {
                     enabled: canUpgrade,
                     color: Colors.blue,
                     isSmall: true,
-                    onPressed: canUpgrade ? onUpgrade : null,
+                    onPressed: canUpgrade ? () {
+                      widget.onUpgrade();
+                      AudioService.playPurchase();
+                    } : null,
                   ),
                 ],
               ],
@@ -222,11 +303,13 @@ class GeneratorCardV2 extends StatelessWidget {
   }
 
   Widget _buildLockedCard() {
+    final genData = widget.genData;
+    final eraConfig = widget.eraConfig;
     // Count total generators in this era
     final eraGenerators = getGeneratorsForEra(genData.era);
     int totalInEra = 0;
     for (final gen in eraGenerators) {
-      totalInEra += gameProvider.state.generators[gen.id] ?? 0;
+      totalInEra += widget.gameProvider.state.generators[gen.id] ?? 0;
     }
     final remaining = genData.unlockRequirement - totalInEra;
 
@@ -311,6 +394,63 @@ class GeneratorCardV2 extends StatelessWidget {
   }
 }
 
+/// Bulk buy amount selector
+class _BulkBuySelector extends StatelessWidget {
+  final BuyAmount selectedAmount;
+  final ValueChanged<BuyAmount> onChanged;
+  final Color color;
+
+  const _BulkBuySelector({
+    required this.selectedAmount,
+    required this.onChanged,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildOption(BuyAmount.x1, 'x1'),
+        _buildOption(BuyAmount.x10, 'x10'),
+        _buildOption(BuyAmount.x100, 'x100'),
+        _buildOption(BuyAmount.max, 'MAX'),
+      ],
+    );
+  }
+
+  Widget _buildOption(BuyAmount amount, String label) {
+    final isSelected = selectedAmount == amount;
+    return GestureDetector(
+      onTap: () => onChanged(amount),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        margin: const EdgeInsets.only(right: 2),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(4),
+          color: isSelected 
+              ? color.withValues(alpha: 0.4)
+              : Colors.white.withValues(alpha: 0.05),
+          border: Border.all(
+            color: isSelected
+                ? color.withValues(alpha: 0.7)
+                : Colors.white.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Orbitron',
+            fontSize: 7,
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: isSelected ? color : Colors.white.withValues(alpha: 0.4),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ActionButton extends StatelessWidget {
   final String text;
   final IconData icon;
@@ -335,8 +475,8 @@ class _ActionButton extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
-          horizontal: isSmall ? 8 : 12,
-          vertical: isSmall ? 4 : 8,
+          horizontal: isSmall ? 8 : 10,
+          vertical: isSmall ? 4 : 6,
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
@@ -362,7 +502,7 @@ class _ActionButton extends StatelessWidget {
               text,
               style: TextStyle(
                 fontFamily: 'Orbitron',
-                fontSize: isSmall ? 9 : 10,
+                fontSize: isSmall ? 8 : 9,
                 fontWeight: FontWeight.bold,
                 color: enabled ? color : Colors.white.withValues(alpha: 0.3),
               ),

@@ -8,12 +8,16 @@ class OfflineEarningsDialog extends StatefulWidget {
   final double earnings;
   final VoidCallback onCollect;
   final VoidCallback onDismiss;
+  final Duration? timeAway;
+  final double offlineEfficiency;
   
   const OfflineEarningsDialog({
     super.key,
     required this.earnings,
     required this.onCollect,
     required this.onDismiss,
+    this.timeAway,
+    this.offlineEfficiency = 0.5,
   });
   
   @override
@@ -25,6 +29,18 @@ class _OfflineEarningsDialogState extends State<OfflineEarningsDialog>
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _glowAnimation;
+  
+  String _formatTimeAway(Duration duration) {
+    if (duration.inDays > 0) {
+      return '${duration.inDays}d ${duration.inHours % 24}h ${duration.inMinutes % 60}m';
+    } else if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    } else {
+      return '${duration.inSeconds}s';
+    }
+  }
   
   @override
   void initState() {
@@ -120,6 +136,39 @@ class _OfflineEarningsDialogState extends State<OfflineEarningsDialog>
                     textAlign: TextAlign.center,
                   ),
                   
+                  // Time away info
+                  if (widget.timeAway != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 14,
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            _formatTimeAway(widget.timeAway!),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
                   const SizedBox(height: 24),
                   
                   // Earnings display
@@ -145,7 +194,7 @@ class _OfflineEarningsDialogState extends State<OfflineEarningsDialog>
                     child: Column(
                       children: [
                         const Text(
-                          'OFFLINE ENTROPY',
+                          'OFFLINE ENERGY',
                           style: TextStyle(
                             fontFamily: 'Orbitron',
                             fontSize: 10,
@@ -170,6 +219,26 @@ class _OfflineEarningsDialogState extends State<OfflineEarningsDialog>
                                 fontSize: 28,
                                 fontWeight: FontWeight.bold,
                                 color: AppColors.goldLight,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Efficiency indicator
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.speed,
+                              size: 14,
+                              color: Colors.white.withValues(alpha: 0.5),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${(widget.offlineEfficiency * 100).toStringAsFixed(0)}% efficiency',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -234,6 +303,8 @@ void showOfflineEarningsDialog(
   BuildContext context, {
   required double earnings,
   required VoidCallback onCollect,
+  Duration? timeAway,
+  double offlineEfficiency = 0.5,
 }) {
   showDialog(
     context: context,
@@ -246,6 +317,8 @@ void showOfflineEarningsDialog(
         onCollect();
       },
       onDismiss: () => Navigator.of(context).pop(),
+      timeAway: timeAway,
+      offlineEfficiency: offlineEfficiency,
     ),
   );
 }

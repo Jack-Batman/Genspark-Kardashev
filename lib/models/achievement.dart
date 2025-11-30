@@ -118,17 +118,17 @@ class AchievementCondition {
 /// All achievements in the game
 const List<Achievement> allAchievements = [
   // ═══════════════════════════════════════════════════════════════
-  // PRODUCTION ACHIEVEMENTS
+  // PRODUCTION ACHIEVEMENTS (spaced out - no immediate triggers)
   // ═══════════════════════════════════════════════════════════════
   Achievement(
-    id: 'prod_1', name: 'First Spark', description: 'Earn 100 total energy',
-    icon: '⚡', category: AchievementCategory.production, rarity: AchievementRarity.bronze,
-    energyReward: 50, condition: AchievementCondition(type: ConditionType.totalEnergy, targetValue: 100),
-  ),
-  Achievement(
-    id: 'prod_2', name: 'Power Up', description: 'Earn 10,000 total energy',
+    id: 'prod_1', name: 'First Spark', description: 'Earn 10,000 total energy',
     icon: '⚡', category: AchievementCategory.production, rarity: AchievementRarity.bronze,
     energyReward: 500, condition: AchievementCondition(type: ConditionType.totalEnergy, targetValue: 10000),
+  ),
+  Achievement(
+    id: 'prod_2', name: 'Power Up', description: 'Earn 100,000 total energy',
+    icon: '⚡', category: AchievementCategory.production, rarity: AchievementRarity.bronze,
+    energyReward: 2500, condition: AchievementCondition(type: ConditionType.totalEnergy, targetValue: 100000),
   ),
   Achievement(
     id: 'prod_3', name: 'Megawatt', description: 'Earn 1 million total energy',
@@ -151,21 +151,21 @@ const List<Achievement> allAchievements = [
     darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.totalEnergy, targetValue: 1e15),
   ),
   
-  // Production per second
+  // Production per second (higher thresholds)
   Achievement(
-    id: 'eps_1', name: 'Trickle', description: 'Reach 10 energy per second',
+    id: 'eps_1', name: 'Trickle', description: 'Reach 50 energy per second',
     icon: '💧', category: AchievementCategory.production, rarity: AchievementRarity.bronze,
-    energyReward: 100, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 10),
+    energyReward: 250, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 50),
   ),
   Achievement(
-    id: 'eps_2', name: 'Stream', description: 'Reach 100 energy per second',
+    id: 'eps_2', name: 'Stream', description: 'Reach 500 energy per second',
     icon: '🌊', category: AchievementCategory.production, rarity: AchievementRarity.bronze,
-    energyReward: 500, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 100),
+    energyReward: 1000, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 500),
   ),
   Achievement(
-    id: 'eps_3', name: 'River', description: 'Reach 1,000 energy per second',
+    id: 'eps_3', name: 'River', description: 'Reach 5,000 energy per second',
     icon: '🌊', category: AchievementCategory.production, rarity: AchievementRarity.silver,
-    energyReward: 2500, darkMatterReward: 10, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 1000),
+    energyReward: 5000, darkMatterReward: 10, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 5000),
   ),
   Achievement(
     id: 'eps_4', name: 'Torrent', description: 'Reach 100,000 energy per second',
@@ -179,32 +179,32 @@ const List<Achievement> allAchievements = [
   ),
   
   // ═══════════════════════════════════════════════════════════════
-  // GENERATOR ACHIEVEMENTS
+  // GENERATOR ACHIEVEMENTS (higher thresholds, removed trivial ones)
   // ═══════════════════════════════════════════════════════════════
   Achievement(
-    id: 'gen_1', name: 'First Build', description: 'Own 1 generator',
+    id: 'gen_1', name: 'Small Grid', description: 'Own 15 total generators',
     icon: '🔧', category: AchievementCategory.generators, rarity: AchievementRarity.bronze,
-    energyReward: 25, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 1),
+    energyReward: 500, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 15),
   ),
   Achievement(
-    id: 'gen_2', name: 'Small Grid', description: 'Own 10 total generators',
+    id: 'gen_2', name: 'Growing Network', description: 'Own 35 total generators',
     icon: '🏭', category: AchievementCategory.generators, rarity: AchievementRarity.bronze,
-    energyReward: 250, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 10),
+    energyReward: 1500, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 35),
   ),
   Achievement(
-    id: 'gen_3', name: 'Power Plant', description: 'Own 50 total generators',
+    id: 'gen_3', name: 'Power Plant', description: 'Own 75 total generators',
     icon: '🏭', category: AchievementCategory.generators, rarity: AchievementRarity.silver,
-    energyReward: 2500, darkMatterReward: 10, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 50),
+    energyReward: 5000, darkMatterReward: 10, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 75),
   ),
   Achievement(
-    id: 'gen_4', name: 'Energy Empire', description: 'Own 100 total generators',
+    id: 'gen_4', name: 'Energy Empire', description: 'Own 150 total generators',
     icon: '🌐', category: AchievementCategory.generators, rarity: AchievementRarity.gold,
-    darkMatterReward: 50, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 100),
+    darkMatterReward: 50, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 150),
   ),
   Achievement(
-    id: 'gen_5', name: 'Mega Corporation', description: 'Own 250 total generators',
+    id: 'gen_5', name: 'Mega Corporation', description: 'Own 300 total generators',
     icon: '🌐', category: AchievementCategory.generators, rarity: AchievementRarity.gold,
-    darkMatterReward: 150, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 250),
+    darkMatterReward: 150, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 300),
   ),
   Achievement(
     id: 'gen_6', name: 'Galactic Conglomerate', description: 'Own 500 total generators',
@@ -212,45 +212,40 @@ const List<Achievement> allAchievements = [
     darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 500),
   ),
   
-  // Specific generators
+  // Specific generators (higher thresholds)
   Achievement(
-    id: 'gen_wind_10', name: 'Wind Farmer', description: 'Own 10 Wind Turbines',
+    id: 'gen_wind_10', name: 'Wind Farmer', description: 'Own 25 Wind Turbines',
     icon: '🌀', category: AchievementCategory.generators, rarity: AchievementRarity.bronze,
-    energyReward: 200, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 10, targetId: 'wind_turbine'),
+    energyReward: 500, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 25, targetId: 'wind_turbine'),
   ),
   Achievement(
-    id: 'gen_solar_10', name: 'Solar Pioneer', description: 'Own 10 Solar Arrays',
+    id: 'gen_solar_10', name: 'Solar Pioneer', description: 'Own 15 Solar Arrays',
     icon: '☀️', category: AchievementCategory.generators, rarity: AchievementRarity.bronze,
-    energyReward: 1000, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 10, targetId: 'solar_panel'),
+    energyReward: 2000, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 15, targetId: 'solar_panel'),
   ),
   Achievement(
-    id: 'gen_fusion_5', name: 'Fusion Master', description: 'Own 5 Fusion Cores',
+    id: 'gen_fusion_5', name: 'Fusion Master', description: 'Own 10 Fusion Cores',
     icon: '🔥', category: AchievementCategory.generators, rarity: AchievementRarity.silver,
-    energyReward: 25000, darkMatterReward: 15, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 5, targetId: 'fusion_reactor'),
+    energyReward: 25000, darkMatterReward: 15, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 10, targetId: 'fusion_reactor'),
   ),
   Achievement(
-    id: 'gen_orbital_1', name: 'Space Age', description: 'Own 1 Orbital Collector',
+    id: 'gen_orbital_1', name: 'Space Age', description: 'Own 3 Orbital Collectors',
     icon: '🛰️', category: AchievementCategory.generators, rarity: AchievementRarity.silver,
-    darkMatterReward: 20, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 1, targetId: 'orbital_array'),
+    darkMatterReward: 20, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 3, targetId: 'orbital_array'),
   ),
   Achievement(
-    id: 'gen_planetary_1', name: 'World Power', description: 'Own 1 Planetary Grid',
+    id: 'gen_planetary_1', name: 'World Power', description: 'Own 2 Planetary Grids',
     icon: '🌐', category: AchievementCategory.generators, rarity: AchievementRarity.gold,
-    darkMatterReward: 50, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 1, targetId: 'planetary_grid'),
+    darkMatterReward: 50, condition: AchievementCondition(type: ConditionType.specificGenerator, targetValue: 2, targetId: 'planetary_grid'),
   ),
   
   // ═══════════════════════════════════════════════════════════════
-  // PROGRESSION ACHIEVEMENTS (Kardashev Level)
+  // PROGRESSION ACHIEVEMENTS (Kardashev Level - spaced out more)
   // ═══════════════════════════════════════════════════════════════
-  Achievement(
-    id: 'kard_01', name: 'First Steps', description: 'Reach Kardashev 0.1',
-    icon: '🚶', category: AchievementCategory.progression, rarity: AchievementRarity.bronze,
-    energyReward: 100, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 0.1),
-  ),
   Achievement(
     id: 'kard_03', name: 'Rising Power', description: 'Reach Kardashev 0.3',
     icon: '📈', category: AchievementCategory.progression, rarity: AchievementRarity.bronze,
-    energyReward: 500, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 0.3),
+    energyReward: 1000, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 0.3),
   ),
   Achievement(
     id: 'kard_05', name: 'Halfway There', description: 'Reach Kardashev 0.5',
@@ -301,22 +296,22 @@ const List<Achievement> allAchievements = [
   ),
   
   // ═══════════════════════════════════════════════════════════════
-  // TAP ACHIEVEMENTS
+  // TAP ACHIEVEMENTS (higher thresholds - no immediate triggers)
   // ═══════════════════════════════════════════════════════════════
   Achievement(
-    id: 'tap_10', name: 'First Clicks', description: 'Tap 10 times',
-    icon: '👆', category: AchievementCategory.special, rarity: AchievementRarity.bronze,
-    energyReward: 10, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 10),
-  ),
-  Achievement(
-    id: 'tap_100', name: 'Tapper', description: 'Tap 100 times',
+    id: 'tap_100', name: 'First Clicks', description: 'Tap 100 times',
     icon: '👆', category: AchievementCategory.special, rarity: AchievementRarity.bronze,
     energyReward: 100, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 100),
   ),
   Achievement(
-    id: 'tap_1000', name: 'Click Master', description: 'Tap 1,000 times',
+    id: 'tap_500', name: 'Tapper', description: 'Tap 500 times',
+    icon: '👆', category: AchievementCategory.special, rarity: AchievementRarity.bronze,
+    energyReward: 500, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 500),
+  ),
+  Achievement(
+    id: 'tap_2000', name: 'Click Master', description: 'Tap 2,000 times',
     icon: '🖱️', category: AchievementCategory.special, rarity: AchievementRarity.silver,
-    energyReward: 1000, darkMatterReward: 5, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 1000),
+    energyReward: 2000, darkMatterReward: 5, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 2000),
   ),
   Achievement(
     id: 'tap_10000', name: 'Finger Athlete', description: 'Tap 10,000 times',

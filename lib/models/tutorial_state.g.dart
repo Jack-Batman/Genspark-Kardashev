@@ -17,10 +17,10 @@ class TutorialStateDataAdapter extends TypeAdapter<TutorialStateData> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return TutorialStateData(
-      introCompleted: fields[0] as bool? ?? false,
+      introCompleted: fields[0] as bool,
       seenTutorials: (fields[1] as List?)?.cast<String>(),
       seenHints: (fields[2] as List?)?.cast<String>(),
-      hintsEnabled: fields[3] as bool? ?? true,
+      hintsEnabled: fields[3] as bool,
       lastHintTime: fields[4] as DateTime?,
     );
   }

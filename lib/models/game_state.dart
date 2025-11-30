@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:hive/hive.dart';
 import '../core/era_data.dart';
+import 'legendary_expedition.dart';
 
 part 'game_state.g.dart';
 
@@ -119,6 +120,75 @@ class GameState extends HiveObject {
   @HiveField(35, defaultValue: 0)
   int totalLoginDays;
   
+  // Artifact system
+  @HiveField(36)
+  List<String> ownedArtifactIds; // List of owned artifact IDs
+  
+  @HiveField(37)
+  Map<String, int> artifactAcquiredAt; // artifact_id -> timestamp (milliseconds)
+  
+  @HiveField(38)
+  Map<String, String> artifactSources; // artifact_id -> source (expedition_id, 'prestige', 'legendary')
+  
+  // Legendary expedition system
+  @HiveField(39)
+  Map<String, dynamic>? activeLegendaryExpedition; // Serialized ActiveLegendaryExpedition
+  
+  @HiveField(40)
+  List<String> completedLegendaryExpeditions; // IDs of completed legendary expeditions
+  
+  @HiveField(41)
+  Map<String, int> legendaryExpeditionCooldowns; // expedition_id -> cooldown end timestamp
+  
+  // Monetization - Membership
+  @HiveField(42, defaultValue: false)
+  bool isMember;
+  
+  @HiveField(43)
+  DateTime? membershipExpiresAt;
+  
+  @HiveField(44)
+  DateTime? membershipStartedAt;
+  
+  // Monetization - IAP tracking
+  @HiveField(45)
+  List<String> purchasedProductIds;
+  
+  // Monetization - Ad tracking
+  @HiveField(46, defaultValue: 0)
+  int dailyAdsWatched;
+  
+  @HiveField(47)
+  DateTime? lastAdWatchDate;
+  
+  // Monetization - Free time warps used today (for members)
+  @HiveField(48, defaultValue: 0)
+  int freeTimeWarpsUsedToday;
+  
+  @HiveField(49)
+  DateTime? lastTimeWarpResetDate;
+  
+  // Founder's Pack
+  @HiveField(50, defaultValue: false)
+  bool hasFoundersPack;
+  
+  // Cosmetics
+  @HiveField(51)
+  String? activeTheme;
+  
+  @HiveField(52)
+  String? activeBorder;
+  
+  @HiveField(53)
+  String? activeParticles;
+  
+  @HiveField(54)
+  List<String> ownedCosmetics;
+  
+  // Monthly DM claimed
+  @HiveField(55)
+  DateTime? lastMonthlyDMClaimed;
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -156,7 +226,34 @@ class GameState extends HiveObject {
     this.lastLoginDate,
     this.loginStreak = 0,
     this.totalLoginDays = 0,
+    List<String>? ownedArtifactIds,
+    Map<String, int>? artifactAcquiredAt,
+    Map<String, String>? artifactSources,
+    this.activeLegendaryExpedition,
+    List<String>? completedLegendaryExpeditions,
+    Map<String, int>? legendaryExpeditionCooldowns,
+    this.isMember = false,
+    this.membershipExpiresAt,
+    this.membershipStartedAt,
+    List<String>? purchasedProductIds,
+    this.dailyAdsWatched = 0,
+    this.lastAdWatchDate,
+    this.freeTimeWarpsUsedToday = 0,
+    this.lastTimeWarpResetDate,
+    this.hasFoundersPack = false,
+    this.activeTheme,
+    this.activeBorder,
+    this.activeParticles,
+    List<String>? ownedCosmetics,
+    this.lastMonthlyDMClaimed,
   })  : generators = generators ?? {},
+        ownedArtifactIds = ownedArtifactIds ?? [],
+        artifactAcquiredAt = artifactAcquiredAt ?? {},
+        artifactSources = artifactSources ?? {},
+        completedLegendaryExpeditions = completedLegendaryExpeditions ?? [],
+        legendaryExpeditionCooldowns = legendaryExpeditionCooldowns ?? {},
+        purchasedProductIds = purchasedProductIds ?? [],
+        ownedCosmetics = ownedCosmetics ?? [],
         unlockedAchievements = unlockedAchievements ?? [],
         claimedAchievements = claimedAchievements ?? [],
         generatorLevels = generatorLevels ?? {},
@@ -177,6 +274,47 @@ class GameState extends HiveObject {
   
   /// Get current Era config
   EraConfig get eraConfig => eraConfigs[era]!;
+  
+  /// Get owned artifact count
+  int get ownedArtifactCount => ownedArtifactIds.length;
+  
+  /// Check if artifact is owned
+  bool hasArtifact(String artifactId) => ownedArtifactIds.contains(artifactId);
+  
+  /// Get active legendary expedition if any
+  ActiveLegendaryExpedition? get activeLegendary {
+    if (activeLegendaryExpedition == null) return null;
+    try {
+      return ActiveLegendaryExpedition.fromMap(
+        Map<String, dynamic>.from(activeLegendaryExpedition!)
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+  
+  /// Check if a legendary expedition is on cooldown
+  bool isLegendaryOnCooldown(String expeditionId) {
+    final cooldownEnd = legendaryExpeditionCooldowns[expeditionId];
+    if (cooldownEnd == null) return false;
+    return DateTime.now().millisecondsSinceEpoch < cooldownEnd;
+  }
+  
+  /// Get remaining cooldown for legendary expedition
+  Duration getLegendaryCooldownRemaining(String expeditionId) {
+    final cooldownEnd = legendaryExpeditionCooldowns[expeditionId];
+    if (cooldownEnd == null) return Duration.zero;
+    final remaining = cooldownEnd - DateTime.now().millisecondsSinceEpoch;
+    if (remaining <= 0) return Duration.zero;
+    return Duration(milliseconds: remaining);
+  }
+  
+  /// Get architects currently on legendary expedition
+  Set<String> get architectsOnLegendaryExpedition {
+    final active = activeLegendary;
+    if (active == null) return {};
+    return active.assignedArchitectIds.toSet();
+  }
   
   /// Get era name as Roman numeral (I, II, III, IV)
   String get eraName {
@@ -339,18 +477,35 @@ class GameState extends HiveObject {
   /// Get the next era transition info
   EraTransition? get nextTransition => getTransitionFromEra(era);
   
-  /// Calculate offline earnings with bonuses
+  /// Check if membership is currently active
+  bool get isMembershipActive {
+    if (!isMember || membershipExpiresAt == null) return false;
+    return DateTime.now().isBefore(membershipExpiresAt!);
+  }
+  
+  /// Get max offline hours based on membership
+  int get maxOfflineHours => isMembershipActive ? 24 : 3;
+  
+  /// Get offline efficiency bonus from membership
+  double get membershipOfflineBonus => isMembershipActive ? 0.5 : 0.0;
+  
+  /// Calculate offline earnings with bonuses (3hr default, 24hr for members)
   double calculateOfflineEarnings() {
     final now = DateTime.now();
     final difference = now.difference(lastOnlineTime);
     final hours = difference.inSeconds / 3600;
-    final cappedHours = hours.clamp(0, 8); // Max 8 hours offline
+    final cappedHours = hours.clamp(0, maxOfflineHours); // 3 hours default, 24 hours for members
     
-    // Offline efficiency with bonus from research
+    // Offline efficiency with bonus from research + membership bonus
     final baseEfficiency = 0.5; // 50% base offline efficiency
-    final totalEfficiency = baseEfficiency + offlineBonus;
+    final totalEfficiency = baseEfficiency + offlineBonus + membershipOfflineBonus;
     
     return energyPerSecond * cappedHours * 3600 * totalEfficiency;
+  }
+  
+  /// Calculate what offline earnings would be with 2x ad bonus
+  double calculateDoubledOfflineEarnings() {
+    return calculateOfflineEarnings() * 2;
   }
   
   /// Get progress towards next Kardashev milestone
@@ -404,6 +559,26 @@ class GameState extends HiveObject {
     DateTime? lastLoginDate,
     int? loginStreak,
     int? totalLoginDays,
+    List<String>? ownedArtifactIds,
+    Map<String, int>? artifactAcquiredAt,
+    Map<String, String>? artifactSources,
+    Map<String, dynamic>? activeLegendaryExpedition,
+    List<String>? completedLegendaryExpeditions,
+    Map<String, int>? legendaryExpeditionCooldowns,
+    bool? isMember,
+    DateTime? membershipExpiresAt,
+    DateTime? membershipStartedAt,
+    List<String>? purchasedProductIds,
+    int? dailyAdsWatched,
+    DateTime? lastAdWatchDate,
+    int? freeTimeWarpsUsedToday,
+    DateTime? lastTimeWarpResetDate,
+    bool? hasFoundersPack,
+    String? activeTheme,
+    String? activeBorder,
+    String? activeParticles,
+    List<String>? ownedCosmetics,
+    DateTime? lastMonthlyDMClaimed,
   }) {
     return GameState(
       energy: energy ?? this.energy,
@@ -442,6 +617,26 @@ class GameState extends HiveObject {
       lastLoginDate: lastLoginDate ?? this.lastLoginDate,
       loginStreak: loginStreak ?? this.loginStreak,
       totalLoginDays: totalLoginDays ?? this.totalLoginDays,
+      ownedArtifactIds: ownedArtifactIds ?? List.from(this.ownedArtifactIds),
+      artifactAcquiredAt: artifactAcquiredAt ?? Map.from(this.artifactAcquiredAt),
+      artifactSources: artifactSources ?? Map.from(this.artifactSources),
+      activeLegendaryExpedition: activeLegendaryExpedition ?? (this.activeLegendaryExpedition != null ? Map.from(this.activeLegendaryExpedition!) : null),
+      completedLegendaryExpeditions: completedLegendaryExpeditions ?? List.from(this.completedLegendaryExpeditions),
+      legendaryExpeditionCooldowns: legendaryExpeditionCooldowns ?? Map.from(this.legendaryExpeditionCooldowns),
+      isMember: isMember ?? this.isMember,
+      membershipExpiresAt: membershipExpiresAt ?? this.membershipExpiresAt,
+      membershipStartedAt: membershipStartedAt ?? this.membershipStartedAt,
+      purchasedProductIds: purchasedProductIds ?? List.from(this.purchasedProductIds),
+      dailyAdsWatched: dailyAdsWatched ?? this.dailyAdsWatched,
+      lastAdWatchDate: lastAdWatchDate ?? this.lastAdWatchDate,
+      freeTimeWarpsUsedToday: freeTimeWarpsUsedToday ?? this.freeTimeWarpsUsedToday,
+      lastTimeWarpResetDate: lastTimeWarpResetDate ?? this.lastTimeWarpResetDate,
+      hasFoundersPack: hasFoundersPack ?? this.hasFoundersPack,
+      activeTheme: activeTheme ?? this.activeTheme,
+      activeBorder: activeBorder ?? this.activeBorder,
+      activeParticles: activeParticles ?? this.activeParticles,
+      ownedCosmetics: ownedCosmetics ?? List.from(this.ownedCosmetics),
+      lastMonthlyDMClaimed: lastMonthlyDMClaimed ?? this.lastMonthlyDMClaimed,
     );
   }
   

@@ -566,7 +566,6 @@ class _PrestigeMilestonesButtonState extends State<_PrestigeMilestonesButton>
   Widget build(BuildContext context) {
     final currentTier = widget.gameProvider.state.prestigeTier;
     final currentMilestone = getMilestoneByTier(currentTier);
-    final nextMilestone = getNextMilestone(currentTier);
     final totalMilestones = prestigeMilestones.length;
     
     return GestureDetector(
@@ -575,7 +574,7 @@ class _PrestigeMilestonesButtonState extends State<_PrestigeMilestonesButton>
         animation: _shimmerController,
         builder: (context, child) {
           return Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               gradient: LinearGradient(
@@ -594,8 +593,8 @@ class _PrestigeMilestonesButtonState extends State<_PrestigeMilestonesButton>
               children: [
                 // Icon with current tier badge
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 32,
+                  height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
@@ -607,65 +606,48 @@ class _PrestigeMilestonesButtonState extends State<_PrestigeMilestonesButton>
                   child: Center(
                     child: Text(
                       currentMilestone?.emoji ?? '🌟',
-                      style: const TextStyle(fontSize: 18),
+                      style: const TextStyle(fontSize: 14),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 
-                // Info
+                // Info and count combined
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'PRESTIGE MILESTONES',
+                        'MILESTONES',
                         style: TextStyle(
                           fontFamily: 'Orbitron',
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.bold,
                           color: Colors.purple,
-                          letterSpacing: 1,
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        currentMilestone?.name ?? 'Unranked',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '$currentTier/$totalMilestones',
+                            style: TextStyle(
+                              fontFamily: 'Orbitron',
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.purple.withValues(alpha: 0.7),
+                            size: 18,
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ),
-                
-                // Progress indicator
-                Column(
-                  children: [
-                    Text(
-                      '$currentTier/$totalMilestones',
-                      style: TextStyle(
-                        fontFamily: 'Orbitron',
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.purple,
-                      ),
-                    ),
-                    if (nextMilestone != null)
-                      Text(
-                        'Next: ${nextMilestone.title}',
-                        style: TextStyle(
-                          fontSize: 8,
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.purple.withValues(alpha: 0.7),
                 ),
               ],
             ),
@@ -689,14 +671,14 @@ class _ArtifactCollectionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Get actual artifact counts from game state
-    const ownedCount = 0;
+    // Get actual artifact counts from game state
+    final ownedCount = gameProvider.state.ownedArtifactIds.length;
     const totalCount = 40; // Approximate total artifacts
     
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
@@ -715,8 +697,8 @@ class _ArtifactCollectionButton extends StatelessWidget {
           children: [
             // Icon
             Container(
-              width: 40,
-              height: 40,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
@@ -724,52 +706,47 @@ class _ArtifactCollectionButton extends StatelessWidget {
                 ),
               ),
               child: const Center(
-                child: Text('🏆', style: TextStyle(fontSize: 18)),
+                child: Text('🏆', style: TextStyle(fontSize: 14)),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             
-            // Info
+            // Info and count combined
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     'ARTIFACTS',
                     style: TextStyle(
                       fontFamily: 'Orbitron',
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                       color: Colors.amber,
-                      letterSpacing: 1,
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Collection',
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: Colors.white.withValues(alpha: 0.7),
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        '$ownedCount/$totalCount',
+                        style: TextStyle(
+                          fontFamily: 'Orbitron',
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white.withValues(alpha: 0.9),
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(
+                        Icons.chevron_right,
+                        color: Colors.amber.withValues(alpha: 0.7),
+                        size: 18,
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-            
-            // Count
-            Text(
-              '$ownedCount/$totalCount',
-              style: TextStyle(
-                fontFamily: 'Orbitron',
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Colors.amber,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.amber.withValues(alpha: 0.7),
             ),
           ],
         ),

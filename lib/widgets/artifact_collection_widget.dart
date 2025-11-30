@@ -42,8 +42,8 @@ class _ArtifactCollectionWidgetState extends State<ArtifactCollectionWidget>
     // Get all artifacts available up to current era
     final availableArtifacts = getArtifactsForEra(currentEra);
     
-    // Mock owned artifacts for display (in real implementation, get from GameProvider)
-    final ownedArtifactIds = <String>{}; // TODO: Get from game state
+    // Get actual owned artifacts from GameState
+    final ownedArtifactIds = widget.gameProvider.state.ownedArtifactIds.toSet();
     
     return Column(
       children: [

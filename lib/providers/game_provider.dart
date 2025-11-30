@@ -9,6 +9,8 @@ import '../models/daily_reward.dart';
 import '../models/expedition.dart';
 import '../models/architect_ability.dart';
 import '../models/challenge.dart';
+import '../models/artifact.dart';
+import '../models/legendary_expedition.dart';
 import '../core/constants.dart';
 import '../core/era_data.dart';
 import '../models/research_v2.dart';
@@ -50,6 +52,7 @@ class GameProvider extends ChangeNotifier {
   // Era transition state
   bool _showEraTransition = false;
   EraTransition? _pendingTransition;
+  DateTime? _eraTransitionDismissedAt;  // Track when user dismissed the dialog
   
   // Achievement notification queue
   final List<Achievement> _pendingAchievementNotifications = [];
@@ -487,20 +490,37 @@ class GameProvider extends ChangeNotifier {
   void _checkEraTransitionMilestone() {
     if (_showEraTransition) return; // Already showing
     
+    // Don't re-show dialog for 30 seconds after user dismisses it
+    if (_eraTransitionDismissedAt != null) {
+      final timeSinceDismiss = DateTime.now().difference(_eraTransitionDismissedAt!);
+      if (timeSinceDismiss.inSeconds < 30) return;
+    }
+    
     final transition = _state.nextTransition;
     if (transition == null) return;
     
-    // Check if reached required Kardashev level
-    if (_state.kardashevLevel >= transition.requiredKardashev &&
-        !_state.unlockedEras.contains(transition.toEra.index)) {
+    // Check if reached required Kardashev level (with small epsilon for floating point)
+    final hasReachedLevel = _state.kardashevLevel >= (transition.requiredKardashev - 0.001);
+    final hasNotTransitioned = !_state.unlockedEras.contains(transition.toEra.index);
+    
+    if (hasReachedLevel && hasNotTransitioned) {
       _pendingTransition = transition;
       _showEraTransition = true;
+      notifyListeners();
     }
   }
   
   /// Dismiss era transition dialog without transitioning
   void dismissEraTransition() {
     _showEraTransition = false;
+    _eraTransitionDismissedAt = DateTime.now();  // Track dismissal time
+    notifyListeners();
+  }
+  
+  /// Set pending transition (called when banner is tapped)
+  void setPendingTransition(EraTransition transition) {
+    _pendingTransition = transition;
+    _showEraTransition = true;
     notifyListeners();
   }
   
@@ -509,8 +529,9 @@ class GameProvider extends ChangeNotifier {
     final transition = _pendingTransition;
     if (transition == null) return false;
     
-    // Check requirements
-    if (_state.kardashevLevel < transition.requiredKardashev) return false;
+    // Check requirements (with small epsilon for floating point comparison)
+    // Allow 0.001 tolerance since K 1.000 might be stored as 0.9999...
+    if (_state.kardashevLevel < (transition.requiredKardashev - 0.001)) return false;
     if (_state.energy < transition.energyCost) return false;
     
     // Pay energy cost
@@ -1550,14 +1571,14 @@ class GameProvider extends ChangeNotifier {
   }
   
   /// Calculate production bonus from Dark Matter
-  /// Each Dark Matter gives diminishing bonus (logarithmic scaling)
+  /// Each Dark Matter gives meaningful bonus with diminishing returns
   double calculateProductionBonusFromDarkMatter(double darkMatter) {
     if (darkMatter <= 0) return 0;
     
-    // Logarithmic bonus: more Dark Matter = smaller incremental gains
-    // Formula: bonus = log10(darkMatter + 1) * 0.1
-    // Examples: 10 DM = 10% bonus, 100 DM = 20% bonus, 1000 DM = 30% bonus
-    return log(darkMatter + 1) / ln10 * 0.1;
+    // More generous formula: sqrt scaling with higher multiplier
+    // Formula: bonus = sqrt(darkMatter) * 0.05
+    // Examples: 10 DM = ~16% bonus, 50 DM = ~35% bonus, 100 DM = 50% bonus, 400 DM = 100% bonus
+    return sqrt(darkMatter) * 0.05;
   }
   
   /// Prestige - Reset progress for permanent bonus
@@ -1576,6 +1597,10 @@ class GameProvider extends ChangeNotifier {
     final preservedArchitects = List<String>.from(_state.ownedArchitects);
     final newPrestigeCount = _state.prestigeCount + 1;
     final preservedUnlockedEras = List<int>.from(_state.unlockedEras);
+    final preservedClaimedAchievements = List<String>.from(_state.claimedAchievements); // Keep claimed achievements
+    final preservedArtifactIds = List<String>.from(_state.ownedArtifactIds); // Keep artifacts
+    final preservedArtifactAcquiredAt = Map<String, int>.from(_state.artifactAcquiredAt);
+    final preservedArtifactSources = Map<String, String>.from(_state.artifactSources);
     
     // Determine prestige tier based on total prestiges (for display/achievements)
     final newPrestigeTier = min(_state.prestigeTier + 1, prestigeTiers.length);
@@ -1592,6 +1617,10 @@ class GameProvider extends ChangeNotifier {
       prestigeTier: newPrestigeTier,
       tutorialCompleted: true,
       unlockedEras: preservedUnlockedEras, // Keep eras unlocked
+      claimedAchievements: preservedClaimedAchievements, // Keep claimed achievements (no double rewards)
+      ownedArtifactIds: preservedArtifactIds, // Keep artifacts
+      artifactAcquiredAt: preservedArtifactAcquiredAt,
+      artifactSources: preservedArtifactSources,
     );
     
     AudioService.playPrestige();
@@ -1899,6 +1928,329 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
   
+  // ═══════════════════════════════════════════════════════════════
+  // LEGENDARY EXPEDITION SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Get active legendary expedition
+  ActiveLegendaryExpedition? get activeLegendaryExpedition => _state.activeLegendary;
+  
+  /// Check if a legendary expedition is active
+  bool get hasActiveLegendaryExpedition => _state.activeLegendary != null;
+  
+  /// Get architects currently on any expedition (regular or legendary)
+  Set<String> get architectsOnAnyExpedition {
+    final onRegular = <String>{};
+    for (final active in _activeExpeditions) {
+      onRegular.addAll(active.assignedArchitectIds);
+    }
+    final onLegendary = _state.architectsOnLegendaryExpedition;
+    return {...onRegular, ...onLegendary};
+  }
+  
+  /// Check if an architect is available for expeditions
+  bool isArchitectAvailable(String architectId) {
+    if (!_state.ownedArchitects.contains(architectId)) return false;
+    return !architectsOnAnyExpedition.contains(architectId);
+  }
+  
+  /// Start a legendary expedition
+  bool startLegendaryExpedition(String expeditionId, List<String> architectIds) {
+    final expedition = getLegendaryExpeditionById(expeditionId);
+    if (expedition == null) return false;
+    
+    // Check if already have an active legendary expedition
+    if (hasActiveLegendaryExpedition) return false;
+    
+    // Check if expedition is on cooldown
+    if (_state.isLegendaryOnCooldown(expeditionId)) return false;
+    
+    // Validate architect count
+    if (architectIds.length < expedition.minArchitects ||
+        architectIds.length > expedition.maxArchitects) {
+      return false;
+    }
+    
+    // Check if architects are available (not on any expedition)
+    final unavailable = architectsOnAnyExpedition;
+    for (final id in architectIds) {
+      if (unavailable.contains(id)) return false;
+      if (!_state.ownedArchitects.contains(id)) return false;
+    }
+    
+    // Create active legendary expedition
+    final active = ActiveLegendaryExpedition(
+      expeditionId: expeditionId,
+      assignedArchitectIds: architectIds,
+      startTime: DateTime.now(),
+      currentStage: 0,
+      stageResults: [],
+      collectedRewards: [],
+    );
+    
+    // Store in game state
+    _state.activeLegendaryExpedition = active.toMap();
+    
+    AudioService.playPurchase();
+    HapticService.heavyImpact();
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Resolve the current stage of legendary expedition
+  LegendaryStageResult? resolveLegendaryStage() {
+    final active = _state.activeLegendary;
+    if (active == null) return null;
+    if (!active.canResolveCurrentStage) return null;
+    
+    final expedition = active.expedition;
+    if (expedition == null) return null;
+    
+    final stage = active.currentStageInfo;
+    if (stage == null) return null;
+    
+    // Calculate success rate with artifact bonuses
+    final baseBonus = calculateArtifactBonus(ArtifactBonusType.expeditionSuccess);
+    final result = rollStageSuccess(
+      expedition,
+      stage,
+      active.assignedArchitectIds,
+      baseBonus,
+    );
+    
+    // Update active expedition state
+    final newStageResults = [...active.stageResults, result.success];
+    final newCollectedRewards = [...active.collectedRewards, result.rewards];
+    
+    if (result.expeditionFailed) {
+      // Expedition failed - end it
+      _state.activeLegendaryExpedition = active.copyWith(
+        stageResults: newStageResults,
+        collectedRewards: newCollectedRewards,
+        failed: true,
+        isCompleted: true,
+      ).toMap();
+      
+      // Apply partial rewards
+      _applyExpeditionRewards(result.rewards);
+      
+      _notificationController.showExpeditionFailed(
+        expedition.name,
+        () {},
+      );
+    } else if (result.expeditionCompleted) {
+      // All stages complete - success!
+      _state.activeLegendaryExpedition = active.copyWith(
+        stageResults: newStageResults,
+        collectedRewards: newCollectedRewards,
+        currentStage: active.currentStage + 1,
+        isCompleted: true,
+      ).toMap();
+      
+      // Apply stage rewards
+      _applyExpeditionRewards(result.rewards);
+      
+      // Apply completion rewards
+      _applyExpeditionRewards(expedition.completionRewards);
+      
+      // Try to drop the legendary artifact
+      _tryDropLegendaryArtifact(expeditionId: expedition.id);
+      
+      _notificationController.showExpeditionComplete(
+        expedition.name,
+        'Legendary expedition completed!',
+        () {},
+      );
+    } else {
+      // Move to next stage
+      _state.activeLegendaryExpedition = active.copyWith(
+        stageResults: newStageResults,
+        collectedRewards: newCollectedRewards,
+        currentStage: active.currentStage + 1,
+      ).toMap();
+      
+      // Apply stage rewards
+      _applyExpeditionRewards(result.rewards);
+    }
+    
+    AudioService.playAchievement();
+    HapticService.heavyImpact();
+    _saveGame();
+    notifyListeners();
+    
+    return result;
+  }
+  
+  /// Collect rewards and end legendary expedition
+  void collectLegendaryExpedition() {
+    final active = _state.activeLegendary;
+    if (active == null || !active.isCompleted) return;
+    
+    final expedition = active.expedition;
+    if (expedition == null) return;
+    
+    // Mark as collected
+    _state.activeLegendaryExpedition = active.copyWith(isCollected: true).toMap();
+    
+    // Add to completed list if successful
+    if (!active.failed) {
+      if (!_state.completedLegendaryExpeditions.contains(expedition.id)) {
+        _state.completedLegendaryExpeditions.add(expedition.id);
+      }
+      
+      // Set cooldown
+      final cooldownEnd = DateTime.now().add(expedition.cooldownAfterCompletion);
+      _state.legendaryExpeditionCooldowns[expedition.id] = 
+          cooldownEnd.millisecondsSinceEpoch;
+    }
+    
+    // Clear active expedition
+    _state.activeLegendaryExpedition = null;
+    
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Cancel an active legendary expedition (forfeits progress)
+  void cancelLegendaryExpedition() {
+    if (!hasActiveLegendaryExpedition) return;
+    _state.activeLegendaryExpedition = null;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Apply expedition rewards to game state
+  void _applyExpeditionRewards(List<ExpeditionReward> rewards) {
+    for (final reward in rewards) {
+      switch (reward.type) {
+        case ExpeditionRewardType.energy:
+          _state.energy += reward.amount;
+          _state.totalEnergyEarned += reward.amount;
+        case ExpeditionRewardType.darkMatter:
+          _state.darkMatter += reward.amount * (1 + _state.darkMatterBonus);
+        case ExpeditionRewardType.researchBoost:
+          _state.researchSpeedBonus += reward.amount;
+        case ExpeditionRewardType.productionBoost:
+          _applyProductionBoost(1 + reward.amount, const Duration(hours: 2));
+        case ExpeditionRewardType.architectXP:
+          // TODO: Implement architect XP system
+          break;
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // ARTIFACT SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Get list of owned artifacts
+  List<Artifact> get ownedArtifacts {
+    return _state.ownedArtifactIds
+        .map((id) => getArtifactById(id))
+        .where((a) => a != null)
+        .cast<Artifact>()
+        .toList();
+  }
+  
+  /// Get owned artifacts count
+  int get ownedArtifactCount => _state.ownedArtifactIds.length;
+  
+  /// Check if player owns an artifact
+  bool hasArtifact(String artifactId) => _state.hasArtifact(artifactId);
+  
+  /// Add an artifact to player's collection
+  void addArtifact(String artifactId, {String? source}) {
+    if (_state.ownedArtifactIds.contains(artifactId)) return; // Already owned
+    
+    final artifact = getArtifactById(artifactId);
+    if (artifact == null) return;
+    
+    _state.ownedArtifactIds.add(artifactId);
+    _state.artifactAcquiredAt[artifactId] = DateTime.now().millisecondsSinceEpoch;
+    if (source != null) {
+      _state.artifactSources[artifactId] = source;
+    }
+    
+    // Show notification
+    _notificationController.showArtifactFound(
+      artifact.name,
+      artifact.rarity.displayName,
+      () {},
+    );
+    
+    AudioService.playAchievement();
+    HapticService.heavyImpact();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Calculate total bonus from artifacts for a specific type
+  double calculateArtifactBonus(ArtifactBonusType bonusType) {
+    double total = 0.0;
+    for (final artifactId in _state.ownedArtifactIds) {
+      final artifact = getArtifactById(artifactId);
+      if (artifact != null && artifact.bonusType == bonusType) {
+        total += artifact.bonusValue;
+      }
+    }
+    return total;
+  }
+  
+  /// Try to drop an artifact from regular expedition
+  void _tryDropArtifactFromExpedition(String expeditionId) {
+    final dropped = rollArtifactDrop(expeditionId, _state.currentEra);
+    if (dropped != null && !_state.ownedArtifactIds.contains(dropped.id)) {
+      addArtifact(dropped.id, source: expeditionId);
+    }
+  }
+  
+  /// Try to drop the specific artifact from legendary expedition
+  void _tryDropLegendaryArtifact({required String expeditionId}) {
+    // Find artifacts that have this expedition as their source
+    final sourceArtifacts = allArtifacts
+        .where((a) => a.sourceExpedition == expeditionId)
+        .toList();
+    
+    if (sourceArtifacts.isEmpty) return;
+    
+    // Guaranteed drop of source artifact from legendary expedition
+    for (final artifact in sourceArtifacts) {
+      if (!_state.ownedArtifactIds.contains(artifact.id)) {
+        addArtifact(artifact.id, source: 'legendary:$expeditionId');
+        break; // Only drop one artifact per completion
+      }
+    }
+  }
+  
+  /// Get artifact bonuses summary for UI display
+  Map<ArtifactBonusType, double> getArtifactBonusesSummary() {
+    final summary = <ArtifactBonusType, double>{};
+    for (final type in ArtifactBonusType.values) {
+      final bonus = calculateArtifactBonus(type);
+      if (bonus > 0) {
+        summary[type] = bonus;
+      }
+    }
+    return summary;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // UPDATED EXPEDITION COMPLETION WITH ARTIFACTS
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Complete an expedition and try to drop an artifact
+  ExpeditionResult? completeExpeditionWithArtifact(String expeditionId) {
+    final result = completeExpedition(expeditionId);
+    
+    if (result != null && result.success) {
+      // Try to drop an artifact
+      _tryDropArtifactFromExpedition(expeditionId);
+    }
+    
+    return result;
+  }
+
   /// Cleanup
   @override
   void dispose() {

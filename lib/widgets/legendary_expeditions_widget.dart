@@ -43,6 +43,12 @@ class _LegendaryExpeditionsWidgetState extends State<LegendaryExpeditionsWidget>
     final currentEra = widget.gameProvider.state.currentEra;
     final prestigeTier = widget.gameProvider.state.prestigeTier;
     
+    // Check for active legendary expedition first
+    final activeLegendary = widget.gameProvider.activeLegendaryExpedition;
+    if (activeLegendary != null) {
+      return _buildActiveExpeditionView(activeLegendary, eraConfig);
+    }
+    
     // Get available legendary expeditions
     final availableExpeditions = getLegendaryExpeditionsForTier(prestigeTier, currentEra);
     
@@ -55,14 +61,631 @@ class _LegendaryExpeditionsWidgetState extends State<LegendaryExpeditionsWidget>
       itemCount: availableExpeditions.length,
       itemBuilder: (context, index) {
         final expedition = availableExpeditions[index];
+        final isOnCooldown = widget.gameProvider.state.isLegendaryOnCooldown(expedition.id);
         return _LegendaryExpeditionCard(
           expedition: expedition,
           gameProvider: widget.gameProvider,
           eraConfig: eraConfig,
           isLocked: expedition.requiredPrestigeTier > prestigeTier || 
                    expedition.requiredEra > currentEra,
+          isOnCooldown: isOnCooldown,
+          cooldownRemaining: isOnCooldown 
+              ? widget.gameProvider.state.getLegendaryCooldownRemaining(expedition.id)
+              : Duration.zero,
         );
       },
+    );
+  }
+  
+  /// Build the active expedition tracking view
+  Widget _buildActiveExpeditionView(ActiveLegendaryExpedition active, EraConfig eraConfig) {
+    final expedition = active.expedition;
+    if (expedition == null) return const SizedBox();
+    
+    final currentStage = active.currentStageInfo;
+    final progress = active.overallProgress;
+    final stageProgress = active.currentStageProgress;
+    final canResolve = active.canResolveCurrentStage;
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [
+                  Colors.purple.withValues(alpha: 0.4),
+                  Colors.indigo.withValues(alpha: 0.2),
+                ],
+              ),
+              border: Border.all(color: Colors.purple.withValues(alpha: 0.5), width: 2),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('⚔️', style: const TextStyle(fontSize: 32)),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            expedition.name,
+                            style: TextStyle(
+                              fontFamily: 'Orbitron',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            expedition.location,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        color: active.failed ? Colors.red : Colors.orange,
+                      ),
+                      child: Text(
+                        active.isCompleted 
+                            ? (active.failed ? 'FAILED' : 'COMPLETE!')
+                            : 'IN PROGRESS',
+                        style: const TextStyle(
+                          fontFamily: 'Orbitron',
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Overall progress
+                Text(
+                  'OVERALL PROGRESS',
+                  style: TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 10,
+                    color: Colors.purple,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: Colors.white.withValues(alpha: 0.1),
+                    valueColor: AlwaysStoppedAnimation(
+                      active.failed ? Colors.red : Colors.purple,
+                    ),
+                    minHeight: 8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Stage ${active.currentStage + 1}/${expedition.stages.length}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Current Stage
+          if (!active.isCompleted && currentStage != null) ...[  
+            Text(
+              'CURRENT STAGE',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 10,
+                color: Colors.purple,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: currentStage.boss != null
+                    ? currentStage.boss!.color.withValues(alpha: 0.2)
+                    : Colors.white.withValues(alpha: 0.05),
+                border: Border.all(
+                  color: currentStage.boss != null
+                      ? currentStage.boss!.color.withValues(alpha: 0.5)
+                      : Colors.white.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        currentStage.boss?.emoji ?? '🎯',
+                        style: const TextStyle(fontSize: 24),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              currentStage.name,
+                              style: TextStyle(
+                                fontFamily: 'Orbitron',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: currentStage.boss?.color ?? Colors.white,
+                              ),
+                            ),
+                            if (currentStage.boss != null)
+                              Text(
+                                'Boss: ${currentStage.boss!.name}',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: currentStage.boss!.color.withValues(alpha: 0.8),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    currentStage.description,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Stage progress
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: stageProgress,
+                      backgroundColor: Colors.white.withValues(alpha: 0.1),
+                      valueColor: AlwaysStoppedAnimation(
+                        canResolve ? Colors.green : Colors.orange,
+                      ),
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    canResolve 
+                        ? 'Ready to resolve!' 
+                        : 'Time remaining: ${_formatDuration(active.currentStageRemainingTime)}',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: canResolve ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Resolve button
+            if (canResolve)
+              GestureDetector(
+                onTap: () => _resolveStage(),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    gradient: LinearGradient(
+                      colors: [
+                        currentStage.boss != null ? currentStage.boss!.color : Colors.purple,
+                        Colors.deepPurple,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (currentStage.boss?.color ?? Colors.purple).withValues(alpha: 0.4),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        currentStage.boss != null ? Icons.shield : Icons.play_arrow,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        currentStage.boss != null ? 'FIGHT BOSS' : 'COMPLETE STAGE',
+                        style: const TextStyle(
+                          fontFamily: 'Orbitron',
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+          
+          // Completed expedition - collect button
+          if (active.isCompleted && !active.isCollected) ...[  
+            const SizedBox(height: 16),
+            GestureDetector(
+              onTap: () => _collectExpedition(),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: active.failed ? Colors.grey : Colors.green,
+                  boxShadow: [
+                    BoxShadow(
+                      color: (active.failed ? Colors.grey : Colors.green).withValues(alpha: 0.4),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      active.failed ? Icons.close : Icons.check_circle,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      active.failed ? 'DISMISS' : 'COLLECT REWARDS',
+                      style: const TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+          
+          const SizedBox(height: 16),
+          
+          // Assigned architects
+          Text(
+            'ASSIGNED ARCHITECTS',
+            style: TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 10,
+              color: Colors.purple,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: active.assignedArchitectIds.map((id) {
+              final architect = getArchitectById(id);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Color(architect?.rarityColor ?? 0xFF808080).withValues(alpha: 0.2),
+                  border: Border.all(
+                    color: Color(architect?.rarityColor ?? 0xFF808080).withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Text(
+                  architect?.name ?? 'Unknown',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(architect?.rarityColor ?? 0xFF808080),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Stage overview
+          Text(
+            'STAGE OVERVIEW',
+            style: TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 10,
+              color: Colors.purple,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...expedition.stages.asMap().entries.map((entry) {
+            final index = entry.key;
+            final stage = entry.value;
+            final isCompleted = index < active.stageResults.length;
+            final isSuccess = isCompleted ? active.stageResults[index] : false;
+            final isCurrent = index == active.currentStage && !active.isCompleted;
+            
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: isCurrent
+                    ? Colors.orange.withValues(alpha: 0.2)
+                    : isCompleted
+                        ? (isSuccess ? Colors.green : Colors.red).withValues(alpha: 0.1)
+                        : Colors.white.withValues(alpha: 0.05),
+                border: Border.all(
+                  color: isCurrent
+                      ? Colors.orange.withValues(alpha: 0.5)
+                      : isCompleted
+                          ? (isSuccess ? Colors.green : Colors.red).withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    stage.boss?.emoji ?? '🎯',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      stage.name,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: isCurrent ? Colors.orange : Colors.white.withValues(alpha: 0.8),
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    isCompleted
+                        ? (isSuccess ? Icons.check_circle : Icons.cancel)
+                        : isCurrent
+                            ? Icons.play_circle
+                            : Icons.circle_outlined,
+                    size: 18,
+                    color: isCompleted
+                        ? (isSuccess ? Colors.green : Colors.red)
+                        : isCurrent
+                            ? Colors.orange
+                            : Colors.white.withValues(alpha: 0.3),
+                  ),
+                ],
+              ),
+            );
+          }),
+          
+          // Cancel button (only if not completed)
+          if (!active.isCompleted) ...[  
+            const SizedBox(height: 24),
+            GestureDetector(
+              onTap: () => _showCancelConfirmation(context),
+              child: Center(
+                child: Text(
+                  'Cancel Expedition',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red.withValues(alpha: 0.7),
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  String _formatDuration(Duration duration) {
+    if (duration.inHours > 0) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    } else {
+      return '${duration.inSeconds}s';
+    }
+  }
+  
+  void _resolveStage() {
+    final result = widget.gameProvider.resolveLegendaryStage();
+    if (result != null) {
+      AudioService.playClick();
+      _showStageResultDialog(result);
+    }
+  }
+  
+  void _showStageResultDialog(LegendaryStageResult result) {
+    final eraConfig = widget.gameProvider.state.eraConfig;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: eraConfig.backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: result.success 
+                ? Colors.green.withValues(alpha: 0.5)
+                : Colors.red.withValues(alpha: 0.5),
+          ),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              result.success ? Icons.check_circle : Icons.cancel,
+              color: result.success ? Colors.green : Colors.red,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              result.success ? 'STAGE COMPLETE!' : 'STAGE FAILED',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                color: result.success ? Colors.green : Colors.red,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              result.message,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+            if (result.rewards.isNotEmpty) ...[  
+              const SizedBox(height: 16),
+              Text(
+                'REWARDS:',
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 10,
+                  color: Colors.amber,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ...result.rewards.map((reward) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Icon(reward.icon, size: 14, color: reward.color),
+                    const SizedBox(width: 6),
+                    Text(
+                      reward.description,
+                      style: TextStyle(fontSize: 11, color: reward.color),
+                    ),
+                  ],
+                ),
+              )),
+            ],
+            if (result.expeditionCompleted) ...[  
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.green.withValues(alpha: 0.2),
+                ),
+                child: Row(
+                  children: [
+                    const Text('🎉', style: TextStyle(fontSize: 20)),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Legendary Expedition Complete!',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: result.success ? Colors.green : Colors.grey,
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CONTINUE'),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void _collectExpedition() {
+    widget.gameProvider.collectLegendaryExpedition();
+    AudioService.playAchievement();
+  }
+  
+  void _showCancelConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: widget.gameProvider.state.eraConfig.backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.red.withValues(alpha: 0.5)),
+        ),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            const SizedBox(width: 8),
+            Text(
+              'CANCEL EXPEDITION?',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                color: Colors.red,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'This will forfeit all progress and any rewards earned so far. Your architects will be freed.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('KEEP GOING'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(context);
+              widget.gameProvider.cancelLegendaryExpedition();
+            },
+            child: const Text('CANCEL'),
+          ),
+        ],
+      ),
     );
   }
   
@@ -127,12 +750,16 @@ class _LegendaryExpeditionCard extends StatelessWidget {
   final GameProvider gameProvider;
   final EraConfig eraConfig;
   final bool isLocked;
+  final bool isOnCooldown;
+  final Duration cooldownRemaining;
   
   const _LegendaryExpeditionCard({
     required this.expedition,
     required this.gameProvider,
     required this.eraConfig,
     required this.isLocked,
+    this.isOnCooldown = false,
+    this.cooldownRemaining = Duration.zero,
   });
 
   @override
@@ -484,6 +1111,8 @@ class _LegendaryExpeditionCard extends StatelessWidget {
                   // Requirements / Start button
                   if (isLocked)
                     _buildLockedRequirements()
+                  else if (isOnCooldown)
+                    _buildCooldownInfo()
                   else
                     _buildStartButton(context),
                 ],
@@ -530,6 +1159,37 @@ class _LegendaryExpeditionCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  Widget _buildCooldownInfo() {
+    final hours = cooldownRemaining.inHours;
+    final minutes = cooldownRemaining.inMinutes % 60;
+    final timeStr = hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.orange.withValues(alpha: 0.2),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.timer, size: 16, color: Colors.orange),
+          const SizedBox(width: 8),
+          Text(
+            'Cooldown: $timeStr',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.orange,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -653,8 +1313,10 @@ class _LegendaryLaunchSheetState extends State<_LegendaryLaunchSheet> {
   @override
   Widget build(BuildContext context) {
     final ownedArchitects = widget.gameProvider.state.ownedArchitects;
+    // Get architects that are NOT on any expedition (regular or legendary)
+    final unavailableArchitects = widget.gameProvider.architectsOnAnyExpedition;
     final availableArchitects = allArchitects
-        .where((a) => ownedArchitects.contains(a.id))
+        .where((a) => ownedArchitects.contains(a.id) && !unavailableArchitects.contains(a.id))
         .toList();
     
     final canLaunch = _selectedArchitects.length >= widget.expedition.minArchitects;
@@ -916,25 +1578,45 @@ class _LegendaryLaunchSheetState extends State<_LegendaryLaunchSheet> {
   void _launchExpedition(BuildContext context) {
     AudioService.playClick();
     
-    // Show confirmation
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Text('⚔️', style: TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
-            Text('Legendary expedition launched!'),
-          ],
-        ),
-        backgroundColor: Colors.purple,
-        duration: const Duration(seconds: 3),
-      ),
+    // Actually start the expedition in game provider
+    final success = widget.gameProvider.startLegendaryExpedition(
+      widget.expedition.id,
+      _selectedArchitects.toList(),
     );
     
-    Navigator.pop(context);
-    
-    // TODO: Actually start the expedition in game provider
-    // This would require adding legendary expedition support to GameProvider
+    if (success) {
+      Navigator.pop(context);
+      
+      // Show confirmation
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Text('⚔️', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text('Legendary expedition launched!'),
+            ],
+          ),
+          backgroundColor: Colors.purple,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else {
+      // Show error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Text('Failed to start expedition'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
   
   /// Get emoji for architect based on rarity

@@ -20,8 +20,8 @@ class OwnedArtifactAdapter extends TypeAdapter<OwnedArtifact> {
       artifactId: fields[0] as String,
       acquiredAt: fields[1] as DateTime,
       acquiredFrom: fields[2] as String?,
-      level: fields[3] as int? ?? 1,
-      isEquipped: fields[4] as bool? ?? true,
+      level: fields[3] as int,
+      isEquipped: fields[4] as bool,
     );
   }
 

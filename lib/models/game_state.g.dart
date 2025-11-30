@@ -53,13 +53,33 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       lastLoginDate: fields[33] as DateTime?,
       loginStreak: fields[34] == null ? 0 : fields[34] as int,
       totalLoginDays: fields[35] == null ? 0 : fields[35] as int,
+      ownedArtifactIds: (fields[36] as List?)?.cast<String>(),
+      artifactAcquiredAt: (fields[37] as Map?)?.cast<String, int>(),
+      artifactSources: (fields[38] as Map?)?.cast<String, String>(),
+      activeLegendaryExpedition: (fields[39] as Map?)?.cast<String, dynamic>(),
+      completedLegendaryExpeditions: (fields[40] as List?)?.cast<String>(),
+      legendaryExpeditionCooldowns: (fields[41] as Map?)?.cast<String, int>(),
+      isMember: fields[42] == null ? false : fields[42] as bool,
+      membershipExpiresAt: fields[43] as DateTime?,
+      membershipStartedAt: fields[44] as DateTime?,
+      purchasedProductIds: (fields[45] as List?)?.cast<String>(),
+      dailyAdsWatched: fields[46] == null ? 0 : fields[46] as int,
+      lastAdWatchDate: fields[47] as DateTime?,
+      freeTimeWarpsUsedToday: fields[48] == null ? 0 : fields[48] as int,
+      lastTimeWarpResetDate: fields[49] as DateTime?,
+      hasFoundersPack: fields[50] == null ? false : fields[50] as bool,
+      activeTheme: fields[51] as String?,
+      activeBorder: fields[52] as String?,
+      activeParticles: fields[53] as String?,
+      ownedCosmetics: (fields[54] as List?)?.cast<String>(),
+      lastMonthlyDMClaimed: fields[55] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(36)
+      ..writeByte(56)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -131,7 +151,47 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(34)
       ..write(obj.loginStreak)
       ..writeByte(35)
-      ..write(obj.totalLoginDays);
+      ..write(obj.totalLoginDays)
+      ..writeByte(36)
+      ..write(obj.ownedArtifactIds)
+      ..writeByte(37)
+      ..write(obj.artifactAcquiredAt)
+      ..writeByte(38)
+      ..write(obj.artifactSources)
+      ..writeByte(39)
+      ..write(obj.activeLegendaryExpedition)
+      ..writeByte(40)
+      ..write(obj.completedLegendaryExpeditions)
+      ..writeByte(41)
+      ..write(obj.legendaryExpeditionCooldowns)
+      ..writeByte(42)
+      ..write(obj.isMember)
+      ..writeByte(43)
+      ..write(obj.membershipExpiresAt)
+      ..writeByte(44)
+      ..write(obj.membershipStartedAt)
+      ..writeByte(45)
+      ..write(obj.purchasedProductIds)
+      ..writeByte(46)
+      ..write(obj.dailyAdsWatched)
+      ..writeByte(47)
+      ..write(obj.lastAdWatchDate)
+      ..writeByte(48)
+      ..write(obj.freeTimeWarpsUsedToday)
+      ..writeByte(49)
+      ..write(obj.lastTimeWarpResetDate)
+      ..writeByte(50)
+      ..write(obj.hasFoundersPack)
+      ..writeByte(51)
+      ..write(obj.activeTheme)
+      ..writeByte(52)
+      ..write(obj.activeBorder)
+      ..writeByte(53)
+      ..write(obj.activeParticles)
+      ..writeByte(54)
+      ..write(obj.ownedCosmetics)
+      ..writeByte(55)
+      ..write(obj.lastMonthlyDMClaimed);
   }
 
   @override

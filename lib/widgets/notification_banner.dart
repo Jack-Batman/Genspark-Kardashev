@@ -20,6 +20,9 @@ enum NotificationType {
   weeklyChallengeReset,
   generatorMilestone,
   productionMilestone,
+  // Artifact and legendary expedition additions
+  artifactFound,
+  legendaryStageComplete,
 }
 
 /// In-app notification banner model
@@ -401,6 +404,32 @@ class NotificationBannerController extends ChangeNotifier {
       message: 'Reached $milestone energy per second!',
       icon: Icons.bolt,
       color: Colors.yellow,
+      onTap: onTap,
+      duration: const Duration(seconds: 4),
+    ));
+  }
+  
+  void showArtifactFound(String artifactName, String rarity, VoidCallback onTap) {
+    show(NotificationBannerData(
+      id: 'artifact_found_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.artifactFound,
+      title: 'ARTIFACT DISCOVERED!',
+      message: '$rarity artifact: $artifactName',
+      icon: Icons.diamond,
+      color: Colors.deepPurple,
+      onTap: onTap,
+      duration: const Duration(seconds: 5),
+    ));
+  }
+  
+  void showLegendaryStageComplete(String stageName, bool isBossStage, VoidCallback onTap) {
+    show(NotificationBannerData(
+      id: 'legendary_stage_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.expeditionComplete,
+      title: isBossStage ? 'BOSS DEFEATED!' : 'STAGE COMPLETE!',
+      message: stageName,
+      icon: isBossStage ? Icons.shield : Icons.check_circle,
+      color: isBossStage ? Colors.red : Colors.purple,
       onTap: onTap,
       duration: const Duration(seconds: 4),
     ));

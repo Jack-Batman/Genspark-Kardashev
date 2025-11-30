@@ -1,6 +1,7 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/constants.dart';
 import '../core/era_data.dart';
 import '../game/kardashev_game.dart';
 
@@ -12,7 +13,7 @@ import '../widgets/architects_widget.dart';
 import '../widgets/daily_reward_dialog.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/generator_card_v2.dart';
-import '../widgets/entropy_assistant.dart';
+// Entropy assistant removed
 import '../widgets/offline_earnings_dialog.dart';
 import '../widgets/research_tree_v2.dart';
 import '../widgets/settings_widget.dart';
@@ -21,6 +22,7 @@ import '../widgets/tutorial_overlay.dart';
 import '../widgets/tutorial_manager.dart';
 import '../widgets/statistics_widget.dart';
 import '../widgets/notification_banner.dart';
+import '../widgets/store_screen.dart';
 
 /// Main Game Screen - Multi-Era Support
 class GameScreen extends StatefulWidget {
@@ -33,7 +35,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late KardashevGame _game;
   int _selectedTab = 0;
-  bool _showEntropy = false;
+  // Entropy assistant removed
   bool _hasShownOfflineDialog = false;
 
   late AnimationController _tabAnimationController;
@@ -75,6 +77,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               },
               timeAway: gameProvider.timeAway,
               offlineEfficiency: gameProvider.offlineEfficiency,
+              maxOfflineHours: gameProvider.state.maxOfflineHours,
+              isMember: gameProvider.state.isMembershipActive,
+              onCollectWithBonus: (doubledEarnings) {
+                // Collect with 2x bonus from ad
+                gameProvider.state.energy += doubledEarnings;
+                gameProvider.state.totalEnergyEarned += doubledEarnings;
+                gameProvider.dismissOfflineEarnings();
+              },
             );
           });
         }
@@ -109,13 +119,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: _buildTopHUD(gameProvider),
                 ),
 
-                // Era selector (if multiple eras unlocked)
+                // Era selector (if multiple eras unlocked) - moved down to avoid overlap
                 if (gameProvider.state.unlockedEras.length > 1)
                   Positioned(
-                    top: 80,
+                    top: 115,
                     left: 16,
                     right: 16,
                     child: _buildEraSelector(gameProvider),
+                  ),
+
+                // Era Ascension Available Banner
+                if (_isEraTransitionAvailable(gameProvider))
+                  Positioned(
+                    top: gameProvider.state.unlockedEras.length > 1 ? 165 : 115,
+                    left: 16,
+                    right: 16,
+                    child: _buildEraAscensionBanner(gameProvider),
                   ),
 
                 // Bottom Panel
@@ -162,29 +181,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       ),
                     ),
                   ),
-
-                // ENTROPY Assistant - Always positioned above the bottom panel
-                Positioned(
-                  right: 16,
-                  bottom: 380,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    child:
-                        _showEntropy
-                            ? SizedBox(
-                              width: MediaQuery.of(context).size.width - 32,
-                              child: EntropyAssistant(
-                                isExpanded: true,
-                                message: _getEntropyMessage(gameProvider),
-                                onTap: () => setState(() => _showEntropy = false),
-                              ),
-                            )
-                            : EntropyAssistant(
-                              isExpanded: false,
-                              onTap: () => setState(() => _showEntropy = true),
-                            ),
-                  ),
-                ),
 
                 // Era Transition Dialog
                 if (gameProvider.showEraTransition && gameProvider.pendingTransition != null)
@@ -274,29 +270,192 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           eraConfig: eraConfig,
         ),
         
-        const SizedBox(width: 12),
+        const SizedBox(width: 8),
         
-        // Settings Gear Icon
-        GestureDetector(
-          onTap: () => _showSettingsModal(context, gameProvider),
-          child: Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black.withValues(alpha: 0.3),
-              border: Border.all(
-                color: eraConfig.primaryColor.withValues(alpha: 0.3),
+        // Settings and Market Icons (stacked vertically)
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Settings Gear Icon
+            GestureDetector(
+              onTap: () => _showSettingsModal(context, gameProvider),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.black.withValues(alpha: 0.3),
+                  border: Border.all(
+                    color: eraConfig.primaryColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Icon(
+                  Icons.settings,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  size: 18,
+                ),
               ),
             ),
-            child: Icon(
-              Icons.settings,
-              color: Colors.white.withValues(alpha: 0.7),
-              size: 20,
+            const SizedBox(height: 6),
+            // Market Icon
+            GestureDetector(
+              onTap: () => _openStore(context, gameProvider),
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      AppColors.goldAccent.withValues(alpha: 0.3),
+                      AppColors.goldDark.withValues(alpha: 0.2),
+                    ],
+                  ),
+                  border: Border.all(
+                    color: AppColors.goldAccent.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: const Icon(
+                  Icons.storefront,
+                  color: AppColors.goldLight,
+                  size: 18,
+                ),
+              ),
             ),
-          ),
+          ],
         ),
       ],
+    );
+  }
+  
+  void _openStore(BuildContext context, GameProvider gameProvider) {
+    AudioService.playClick();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => StoreScreen(gameProvider: gameProvider),
+      ),
+    );
+  }
+  
+  /// Check if era transition is available
+  bool _isEraTransitionAvailable(GameProvider gameProvider) {
+    final transition = gameProvider.state.nextTransition;
+    if (transition == null) return false;
+    
+    // Check if reached required Kardashev level but haven't transitioned yet
+    // Use small epsilon for floating point comparison (0.999 should count as 1.0)
+    final hasReachedLevel = gameProvider.state.kardashevLevel >= (transition.requiredKardashev - 0.001);
+    final hasNotTransitioned = !gameProvider.state.unlockedEras.contains(transition.toEra.index);
+    
+    return hasReachedLevel && hasNotTransitioned;
+  }
+  
+  /// Build the Era Ascension banner
+  Widget _buildEraAscensionBanner(GameProvider gameProvider) {
+    final transition = gameProvider.state.nextTransition!;
+    final eraConfig = gameProvider.state.eraConfig;
+    final canAfford = gameProvider.state.energy >= transition.energyCost;
+    
+    return GestureDetector(
+      onTap: () {
+        AudioService.playClick();
+        _showEraTransitionDialog(context, gameProvider, transition);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.amber.withValues(alpha: 0.3),
+              Colors.orange.withValues(alpha: 0.2),
+            ],
+          ),
+          border: Border.all(
+            color: Colors.amber.withValues(alpha: 0.6),
+            width: 2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withValues(alpha: 0.3),
+              blurRadius: 12,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Pulsing icon
+            _AscensionIcon(),
+            const SizedBox(width: 12),
+            
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '🚀 ${transition.title} AVAILABLE!',
+                    style: const TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    canAfford 
+                        ? 'Tap to ascend to the next era!'
+                        : 'Need ${GameProvider.formatNumber(transition.energyCost)} energy',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: canAfford 
+                          ? Colors.white.withValues(alpha: 0.8)
+                          : Colors.red.withValues(alpha: 0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Arrow
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.amber.withValues(alpha: 0.8),
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showEraTransitionDialog(BuildContext context, GameProvider gameProvider, EraTransition transition) {
+    // CRITICAL: Set the pending transition so executeEraTransition() can access it
+    gameProvider.setPendingTransition(transition);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => EraTransitionDialog(
+        transition: transition,
+        gameProvider: gameProvider,
+        onDismiss: () {
+          gameProvider.dismissEraTransition();
+          Navigator.of(context).pop();
+        },
+        onTransition: () {
+          if (gameProvider.executeEraTransition()) {
+            AudioService.playEraTransition();
+            Navigator.of(context).pop();
+          }
+        },
+      ),
     );
   }
   
@@ -664,84 +823,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     return StatisticsWidget(gameProvider: gameProvider);
   }
 
-  String _getEntropyMessage(GameProvider gameProvider) {
-    final state = gameProvider.state;
-    final eraConfig = state.eraConfig;
-
-    // Era-specific contextual hints
-    if (state.generators.isEmpty) {
-      return 'Commander, begin by building generators to harness energy. Tap the ${_getCentralObjectName(state.era)} to manually gather energy.';
-    }
-
-    if (state.energyPerSecond < _getMinProductionForEra(state.era)) {
-      return 'Energy reserves are low. Focus on building more ${eraConfig.subtitle} generators to increase passive income.';
-    }
-
-    // Check for era transition
-    final transition = state.nextTransition;
-    if (transition != null && state.kardashevLevel >= transition.requiredKardashev * 0.9) {
-      return 'You approach ${transition.title}! Prepare ${GameProvider.formatNumber(transition.energyCost)} energy to ascend to the ${eraConfigs[transition.toEra]!.subtitle} era.';
-    }
-
-    if (state.darkMatter >= 100 && state.ownedArchitects.isEmpty) {
-      return 'You have enough Dark Matter to synthesize an Architect. These brilliant minds will boost your production permanently.';
-    }
-    
-    // Check for prestige availability - HIGH PRIORITY MESSAGE
-    final nextPrestige = gameProvider.getNextPrestigeInfo();
-    if (nextPrestige != null && state.kardashevLevel >= nextPrestige.requiredKardashev) {
-      return 'PRESTIGE AVAILABLE! Go to STATS tab to ascend to "${nextPrestige.tierName}". You\'ll gain +${(nextPrestige.productionBonusGain * 100).toStringAsFixed(1)}% permanent production bonus and ${GameProvider.formatNumber(nextPrestige.darkMatterReward)} Dark Matter!';
-    }
-
-    // Era-specific messages
-    switch (state.era) {
-      case Era.planetary:
-        if (state.kardashevLevel >= 0.5) {
-          return 'Your civilization approaches Type I status. The stars are within reach.';
-        }
-        break;
-      case Era.stellar:
-        if (state.kardashevLevel >= 1.5) {
-          return 'The Dyson infrastructure expands. Soon you will command stellar-scale power.';
-        }
-        break;
-      case Era.galactic:
-        if (state.kardashevLevel >= 2.5) {
-          return 'Your galactic network spans millions of stars. The universe itself calls to you.';
-        }
-        break;
-      case Era.universal:
-        return 'You manipulate the fabric of reality. Transcendence awaits.';
-    }
-
-    return 'Your ${eraConfig.subtitle} energy infrastructure is developing well. Continue expanding to reach higher Kardashev levels.';
-  }
-
-  String _getCentralObjectName(Era era) {
-    switch (era) {
-      case Era.planetary:
-        return 'planet';
-      case Era.stellar:
-        return 'star';
-      case Era.galactic:
-        return 'galaxy';
-      case Era.universal:
-        return 'creation point';
-    }
-  }
-
-  double _getMinProductionForEra(Era era) {
-    switch (era) {
-      case Era.planetary:
-        return 10;
-      case Era.stellar:
-        return 100000;
-      case Era.galactic:
-        return 1e14;
-      case Era.universal:
-        return 1e22;
-    }
-  }
+  // Entropy assistant and helper methods removed
 }
 
 /// Pulsing prestige notification badge
@@ -985,6 +1067,76 @@ class _PrestigeAvailableCardState extends State<_PrestigeAvailableCard> with Sin
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Pulsing ascension icon for era transition banner
+class _AscensionIcon extends StatefulWidget {
+  @override
+  State<_AscensionIcon> createState() => _AscensionIconState();
+}
+
+class _AscensionIconState extends State<_AscensionIcon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _glowAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+    _glowAnimation = Tween<double>(begin: 4.0, end: 12.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [Colors.amber, Colors.orange],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amber.withValues(alpha: 0.6),
+                  blurRadius: _glowAnimation.value,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(
+                Icons.rocket_launch,
+                color: Colors.white,
+                size: 22,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

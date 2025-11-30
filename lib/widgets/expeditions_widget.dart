@@ -7,6 +7,7 @@ import '../models/expedition.dart';
 import '../models/tutorial_state.dart';
 import '../providers/game_provider.dart';
 import '../services/audio_service.dart';
+import '../services/ad_service.dart';
 import 'tutorial_manager.dart';
 import 'legendary_expeditions_widget.dart';
 
@@ -27,6 +28,7 @@ class _ExpeditionsWidgetState extends State<ExpeditionsWidget>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   Timer? _refreshTimer;
+  final AdService _adService = AdService();
   
   @override
   void initState() {
@@ -209,13 +211,9 @@ class _ExpeditionsWidgetState extends State<ExpeditionsWidget>
 
   Widget _buildTeamTab(EraConfig eraConfig) {
     final ownedArchitects = widget.gameProvider.state.ownedArchitects;
-    final activeExpeditions = widget.gameProvider.activeExpeditions;
     
-    // Get architects on expedition
-    final architectsOnExpedition = <String>{};
-    for (final active in activeExpeditions) {
-      architectsOnExpedition.addAll(active.assignedArchitectIds);
-    }
+    // Get architects on ANY expedition (regular or legendary)
+    final architectsOnExpedition = widget.gameProvider.architectsOnAnyExpedition;
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(12),
@@ -318,11 +316,8 @@ class _ExpeditionsWidgetState extends State<ExpeditionsWidget>
       return false;
     }
     
-    // Get available architects
-    final architectsOnExpedition = <String>{};
-    for (final active in activeExpeditions) {
-      architectsOnExpedition.addAll(active.assignedArchitectIds);
-    }
+    // Get available architects (not on ANY expedition - regular or legendary)
+    final architectsOnExpedition = widget.gameProvider.architectsOnAnyExpedition;
     
     final availableCount = ownedArchitects.length - architectsOnExpedition.length;
     return availableCount >= expedition.minArchitects;
@@ -359,6 +354,7 @@ class _ExpeditionsWidgetState extends State<ExpeditionsWidget>
   void _showExpeditionResultDialog(ExpeditionResult result, ActiveExpedition active) {
     final expedition = getExpeditionById(active.expeditionId);
     final eraConfig = widget.gameProvider.state.eraConfig;
+    final canRetry = !result.success && _adService.canWatchAd(AdPlacement.expeditionRetry);
     
     showDialog(
       context: context,
@@ -436,9 +432,91 @@ class _ExpeditionsWidgetState extends State<ExpeditionsWidget>
                 ),
               )),
             ],
+            // Ad retry option for failed expeditions
+            if (!result.success && canRetry) ...[
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.info.withValues(alpha: 0.2),
+                  border: Border.all(
+                    color: AppColors.info.withValues(alpha: 0.5),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.play_circle_filled,
+                          color: AppColors.info,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Watch ad to retry this expedition!',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${_adService.getRemainingWatches(AdPlacement.expeditionRetry)}/3 retries remaining today',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.info.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
         actions: [
+          if (!result.success && canRetry)
+            TextButton(
+              onPressed: () async {
+                Navigator.pop(context);
+                final adResult = await _adService.showRewardedAd(AdPlacement.expeditionRetry);
+                if (adResult.success && expedition != null) {
+                  // Restart the expedition with the same architects
+                  widget.gameProvider.startExpedition(
+                    expedition.id, 
+                    active.assignedArchitectIds,
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Expedition restarted! Good luck!'),
+                        backgroundColor: AppColors.success,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.play_circle_filled, size: 16, color: AppColors.info),
+                  const SizedBox(width: 4),
+                  Text(
+                    'WATCH AD TO RETRY',
+                    style: TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 10,
+                      color: AppColors.info,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: result.success ? Colors.green : Colors.grey,
@@ -1154,12 +1232,8 @@ class _StartExpeditionSheetState extends State<_StartExpeditionSheet> {
 
   List<String> get _availableArchitects {
     final owned = widget.gameProvider.state.ownedArchitects;
-    final activeExpeditions = widget.gameProvider.activeExpeditions;
-    
-    final onExpedition = <String>{};
-    for (final active in activeExpeditions) {
-      onExpedition.addAll(active.assignedArchitectIds);
-    }
+    // Use the unified method that checks both regular and legendary expeditions
+    final onExpedition = widget.gameProvider.architectsOnAnyExpedition;
     
     return owned.where((id) => !onExpedition.contains(id)).toList();
   }

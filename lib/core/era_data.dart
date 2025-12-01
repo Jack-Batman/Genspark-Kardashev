@@ -7,7 +7,8 @@ enum Era {
   planetary,  // Era I: 0.0 - 1.0
   stellar,    // Era II: 1.0 - 2.0
   galactic,   // Era III: 2.0 - 3.0
-  universal,  // Era IV: 3.0+
+  universal,  // Era IV: 3.0 - 4.0
+  multiversal,// Era V: 4.0+
 }
 
 /// Era configuration and theming
@@ -111,6 +112,22 @@ const Map<Era, EraConfig> eraConfigs = {
     darkMatterMultiplier: 100.0,
     unlockMessage: 'Type III Civilization Achieved! The galaxy bends to your will. Reality itself awaits reshaping.',
   ),
+  Era.multiversal: EraConfig(
+    era: Era.multiversal,
+    name: 'ERA V',
+    subtitle: 'MULTIVERSAL',
+    description: 'Transcend reality. Harvest energy from infinite timelines and manipulate the fundamental logic of existence.',
+    minKardashev: 4.0,
+    maxKardashev: 5.0,
+    primaryColor: Color(0xFF6200EA), // Deep Purple
+    secondaryColor: Color(0xFF00E5FF), // Neon Cyan
+    accentColor: Color(0xFF00E5FF), // Cyan Accent
+    backgroundColor: Color(0xFF050010), // Void
+    centralObject: 'multiverse',
+    prestigeMultiplier: 1000.0,
+    darkMatterMultiplier: 1000.0,
+    unlockMessage: 'Type IV Civilization Achieved! You have transcended the universe. The multiverse is yours to command.',
+  ),
 };
 
 /// Generator types for all Eras
@@ -146,6 +163,14 @@ enum GeneratorTypeV2 {
   realityEngine,
   entropyReverser,
   omniversalCore,
+
+  // Era V - Multiversal
+  quantumFoamSiphon,
+  braneCollider,
+  entropyDeleter,
+  timelineWeaver,
+  logicRewriter,
+  omniversalThrone,
 }
 
 /// Generator data structure
@@ -456,6 +481,76 @@ const List<GeneratorDataV2> allGenerators = [
     costMultiplier: 1.22,
     unlockRequirement: 175,
   ),
+
+  // ═══════════════════════════════════════════════════════════════
+  // ERA V - MULTIVERSAL (Kardashev 4.0+)
+  // ═══════════════════════════════════════════════════════════════
+  GeneratorDataV2(
+    id: 'quantum_foam_siphon',
+    name: 'Quantum Foam Siphon',
+    description: 'Extract infinite potential from spacetime foam.',
+    icon: '🫧',
+    era: Era.multiversal,
+    baseProduction: 1e25,
+    baseCost: 1e33,
+    costMultiplier: 1.12,
+    unlockRequirement: 0,
+  ),
+  GeneratorDataV2(
+    id: 'brane_collider',
+    name: 'Brane Collider',
+    description: 'Smash parallel universes to release energy.',
+    icon: '💥',
+    era: Era.multiversal,
+    baseProduction: 5e25,
+    baseCost: 1e35,
+    costMultiplier: 1.14,
+    unlockRequirement: 25,
+  ),
+  GeneratorDataV2(
+    id: 'entropy_deleter',
+    name: 'Entropy Deleter',
+    description: 'Erase thermodynamic waste from existence.',
+    icon: '🚫',
+    era: Era.multiversal,
+    baseProduction: 2.5e26,
+    baseCost: 1e38,
+    costMultiplier: 1.16,
+    unlockRequirement: 50,
+  ),
+  GeneratorDataV2(
+    id: 'timeline_weaver',
+    name: 'Timeline Weaver',
+    description: 'Weave favorable timelines into reality.',
+    icon: '🧶',
+    era: Era.multiversal,
+    baseProduction: 1.2e27,
+    baseCost: 1e42,
+    costMultiplier: 1.18,
+    unlockRequirement: 75,
+  ),
+  GeneratorDataV2(
+    id: 'logic_rewriter',
+    name: 'Logic Rewriter',
+    description: 'Rewrite the laws of physics at will.',
+    icon: '📝',
+    era: Era.multiversal,
+    baseProduction: 6e28,
+    baseCost: 1e50,
+    costMultiplier: 1.20,
+    unlockRequirement: 100,
+  ),
+  GeneratorDataV2(
+    id: 'omniversal_throne',
+    name: 'Omniversal Throne',
+    description: 'Rule over all existence from the void.',
+    icon: '👑',
+    era: Era.multiversal,
+    baseProduction: 1e30,
+    baseCost: 1e60,
+    costMultiplier: 1.25,
+    unlockRequirement: 150,
+  ),
 ];
 
 /// Get generators for a specific era
@@ -536,6 +631,20 @@ const List<EraTransition> eraTransitions = [
       'New visual theme: Cosmic Web',
     ],
   ),
+  EraTransition(
+    fromEra: Era.universal,
+    toEra: Era.multiversal,
+    requiredKardashev: 4.0,
+    energyCost: 1e31,
+    title: 'VOID ASCENSION',
+    description: 'Transcend the universe itself. Enter the void between realities and become a multiversal entity.',
+    rewards: [
+      'Unlock 6 Multiversal generators',
+      'x1000 Dark Matter multiplier',
+      'x1000 Prestige bonus',
+      'New visual theme: The Void',
+    ],
+  ),
 ];
 
 /// Get the transition for moving from current era
@@ -591,6 +700,16 @@ const List<PrestigeTier> prestigeTiers = [
   PrestigeTier(tier: 15, name: 'Timeline Weaver', requiredKardashev: 3.6, productionBonus: 25.0, darkMatterReward: 10000000, title: 'Weaver'),
   PrestigeTier(tier: 16, name: 'Entropy Lord', requiredKardashev: 3.9, productionBonus: 50.0, darkMatterReward: 50000000, title: 'Lord'),
   PrestigeTier(tier: 17, name: 'Omniversal God', requiredKardashev: 4.0, productionBonus: 100.0, darkMatterReward: 1000000000, title: 'God'),
+
+  // Era V Prestiges
+  PrestigeTier(tier: 18, name: 'Void Walker', requiredKardashev: 4.1, productionBonus: 250.0, darkMatterReward: 5e9, title: 'Walker'),
+  PrestigeTier(tier: 19, name: 'Reality Hacker', requiredKardashev: 4.2, productionBonus: 500.0, darkMatterReward: 2.5e10, title: 'Hacker'),
+  PrestigeTier(tier: 20, name: 'Timeline Lord', requiredKardashev: 4.3, productionBonus: 1000.0, darkMatterReward: 1e11, title: 'Lord'),
+  PrestigeTier(tier: 21, name: 'Dimension Eater', requiredKardashev: 4.4, productionBonus: 2500.0, darkMatterReward: 5e11, title: 'Eater'),
+  PrestigeTier(tier: 22, name: 'Concept Eraser', requiredKardashev: 4.5, productionBonus: 5000.0, darkMatterReward: 1e12, title: 'Eraser'),
+  PrestigeTier(tier: 23, name: 'Logic Bender', requiredKardashev: 4.6, productionBonus: 10000.0, darkMatterReward: 5e12, title: 'Bender'),
+  PrestigeTier(tier: 24, name: 'The One Above All', requiredKardashev: 4.9, productionBonus: 50000.0, darkMatterReward: 1e13, title: 'Above All'),
+  PrestigeTier(tier: 25, name: 'Endless', requiredKardashev: 5.0, productionBonus: 100000.0, darkMatterReward: 1e14, title: 'Endless'),
 ];
 
 /// Get the next available prestige tier

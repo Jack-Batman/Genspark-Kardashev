@@ -1014,6 +1014,8 @@ class _EraProgressCard extends StatelessWidget {
         icon = Icons.blur_circular;
       case Era.universal:
         icon = Icons.all_inclusive;
+      case Era.multiversal:
+        icon = Icons.bubble_chart;
     }
     return Icon(icon, color: eraConfig.primaryColor, size: 18);
   }
@@ -1028,6 +1030,8 @@ class _EraProgressCard extends StatelessWidget {
         return 'III';
       case Era.universal:
         return 'IV';
+      case Era.multiversal:
+        return 'V';
     }
   }
 }

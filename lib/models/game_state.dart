@@ -445,12 +445,15 @@ class GameState extends HiveObject {
     } else if (logProduction < 23) {
       // Era III: 2.0 - 3.0
       kardashevLevel = 2.0 + ((logProduction - 15) / 8).clamp(0.0, 1.0);
-    } else {
+    } else if (logProduction < 31) {
       // Era IV: 3.0 - 4.0
       kardashevLevel = 3.0 + ((logProduction - 23) / 8).clamp(0.0, 1.0);
+    } else {
+      // Era V: 4.0 - 5.0
+      kardashevLevel = 4.0 + ((logProduction - 31) / 8).clamp(0.0, 1.0);
     }
     
-    kardashevLevel = kardashevLevel.clamp(0.0, 4.0);
+    kardashevLevel = kardashevLevel.clamp(0.0, 5.0);
   }
   
   /// Get era from Kardashev level
@@ -583,6 +586,7 @@ class GameState extends HiveObject {
     String? activeParticles,
     List<String>? ownedCosmetics,
     DateTime? lastMonthlyDMClaimed,
+    double? darkEnergy,
   }) {
     return GameState(
       energy: energy ?? this.energy,

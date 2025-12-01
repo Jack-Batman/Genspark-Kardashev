@@ -420,6 +420,8 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
         return Offset.zero; // Galactic core
       case Era.universal:
         return Offset.zero; // Singularity
+      case Era.multiversal:
+        return Offset.zero; // Void
     }
   }
   
@@ -456,8 +458,8 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
         starColor = Color.lerp(Colors.white, _primaryColor, 0.2)!;
       } else if (_currentEra == Era.galactic) {
         starColor = Color.lerp(Colors.white, _primaryColor, 0.3)!;
-      } else if (_currentEra == Era.universal) {
-        // Rainbow-shifting stars in Era IV
+      } else if (_currentEra == Era.universal || _currentEra == Era.multiversal) {
+        // Rainbow-shifting stars in Era IV/V
         final hue = (star.position.x + star.position.y + _animationTime * 30) % 360;
         starColor = HSVColor.fromAHSV(1, hue.abs(), 0.3, 1.0).toColor();
       }
@@ -538,8 +540,8 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
     
     canvas.drawCircle(Offset.zero, 150, glowPaint);
     
-    // Era IV gets extra cosmic effects
-    if (_currentEra == Era.universal) {
+    // Era IV & V get extra cosmic effects
+    if (_currentEra == Era.universal || _currentEra == Era.multiversal) {
       _drawCosmicEffects(canvas);
     }
   }

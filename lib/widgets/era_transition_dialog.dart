@@ -472,6 +472,8 @@ class _EraTransitionDialogState extends State<EraTransitionDialog>
         return Icons.blur_circular;
       case Era.universal:
         return Icons.all_inclusive;
+      case Era.multiversal:
+        return Icons.bubble_chart;
     }
   }
 }

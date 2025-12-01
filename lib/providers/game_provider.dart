@@ -224,36 +224,6 @@ class GameProvider extends ChangeNotifier {
             _state = loadedState;
             loadedSuccessfully = true;
             
-            // Sanity check: Deduplicate lists and ensure consistency
-            // Fixes negative unclaimed count issue due to duplicates or sync errors
-            bool stateModified = false;
-
-            // 1. Deduplicate unlocked achievements
-            final uniqueUnlocked = _state.unlockedAchievements.toSet().toList();
-            if (uniqueUnlocked.length != _state.unlockedAchievements.length) {
-              _state.unlockedAchievements = uniqueUnlocked;
-              stateModified = true;
-            }
-
-            // 2. Deduplicate claimed achievements
-            final uniqueClaimed = _state.claimedAchievements.toSet().toList();
-            if (uniqueClaimed.length != _state.claimedAchievements.length) {
-              _state.claimedAchievements = uniqueClaimed;
-              stateModified = true;
-            }
-
-            // 3. Ensure all claimed achievements are actually unlocked
-            for (final claimedId in _state.claimedAchievements) {
-              if (!_state.unlockedAchievements.contains(claimedId)) {
-                _state.unlockedAchievements.add(claimedId);
-                stateModified = true;
-              }
-            }
-
-            if (stateModified) {
-              await _saveGame();
-            }
-            
             // Calculate offline earnings
             _offlineEarnings = _state.calculateOfflineEarnings();
             if (_offlineEarnings > 0) {
@@ -1037,25 +1007,6 @@ class GameProvider extends ChangeNotifier {
     _state.energy += energyGain;
     _state.totalEnergyEarned += energyGain;
     
-    // Advance research progress if active
-    if (_currentResearchId != null) {
-      final warpSeconds = hours * 3600;
-      _researchProgress += warpSeconds;
-      
-      // Check if research completed instantly due to warp
-      if (_researchProgress >= _researchTotal) {
-        final research = getResearchNodeById(_currentResearchId!);
-        if (research != null) {
-          // Cancel existing timer to prevent double-completion
-          _researchTimer?.cancel();
-          _researchTimer = null;
-          
-          // Complete the research immediately
-          _completeResearchV2(research);
-        }
-      }
-    }
-    
     HapticService.heavyImpact();
     AudioService.playPurchase();
     _saveGame();
@@ -1342,21 +1293,6 @@ class GameProvider extends ChangeNotifier {
           final energyGain = _state.energyPerSecond * 3600 * reward.amount;
           _state.energy += energyGain;
           _state.totalEnergyEarned += energyGain;
-          
-          // Advance research (Time Warp consistency)
-          if (_currentResearchId != null) {
-            final warpSeconds = (reward.amount * 3600).toInt();
-            _researchProgress += warpSeconds;
-            
-            if (_researchProgress >= _researchTotal) {
-              final research = getResearchNodeById(_currentResearchId!);
-              if (research != null) {
-                _researchTimer?.cancel();
-                _researchTimer = null;
-                _completeResearchV2(research);
-              }
-            }
-          }
       }
     }
     
@@ -1671,7 +1607,6 @@ class GameProvider extends ChangeNotifier {
     final newPrestigeCount = _state.prestigeCount + 1;
     final preservedUnlockedEras = List<int>.from(_state.unlockedEras);
     final preservedClaimedAchievements = List<String>.from(_state.claimedAchievements); // Keep claimed achievements
-    final preservedUnlockedAchievements = List<String>.from(_state.unlockedAchievements); // Keep unlocked achievements
     final preservedArtifactIds = List<String>.from(_state.ownedArtifactIds); // Keep artifacts
     final preservedArtifactAcquiredAt = Map<String, int>.from(_state.artifactAcquiredAt);
     final preservedArtifactSources = Map<String, String>.from(_state.artifactSources);
@@ -1694,7 +1629,6 @@ class GameProvider extends ChangeNotifier {
       tutorialCompleted: true,
       unlockedEras: preservedUnlockedEras, // Keep eras unlocked
       claimedAchievements: preservedClaimedAchievements, // Keep claimed achievements (no double rewards)
-      unlockedAchievements: preservedUnlockedAchievements, // Keep unlocked achievements
       ownedArtifactIds: preservedArtifactIds, // Keep artifacts
       artifactAcquiredAt: preservedArtifactAcquiredAt,
       artifactSources: preservedArtifactSources,
@@ -1758,7 +1692,38 @@ class GameProvider extends ChangeNotifier {
     if (value < 999.995e21) return '${(value / 1e21).toStringAsFixed(2)}Sx';
     if (value < 999.995e24) return '${(value / 1e24).toStringAsFixed(2)}Sp';
     if (value < 999.995e27) return '${(value / 1e27).toStringAsFixed(2)}Oc';
-    return '${(value / 1e30).toStringAsFixed(2)}No';
+    if (value < 999.995e30) return '${(value / 1e30).toStringAsFixed(2)}No';
+    if (value < 999.995e33) return '${(value / 1e33).toStringAsFixed(2)}Dc';
+    if (value < 999.995e36) return '${(value / 1e36).toStringAsFixed(2)}Ud';
+    if (value < 999.995e39) return '${(value / 1e39).toStringAsFixed(2)}Dd';
+    if (value < 999.995e42) return '${(value / 1e42).toStringAsFixed(2)}Td';
+    if (value < 999.995e45) return '${(value / 1e45).toStringAsFixed(2)}Qd';
+    if (value < 999.995e48) return '${(value / 1e48).toStringAsFixed(2)}Qn';
+    if (value < 999.995e51) return '${(value / 1e51).toStringAsFixed(2)}Sd';
+    if (value < 999.995e54) return '${(value / 1e54).toStringAsFixed(2)}Spd';
+    if (value < 999.995e57) return '${(value / 1e57).toStringAsFixed(2)}Od';
+    if (value < 999.995e60) return '${(value / 1e60).toStringAsFixed(2)}Nd';
+    if (value < 999.995e63) return '${(value / 1e63).toStringAsFixed(2)}Vg';
+    if (value < 999.995e66) return '${(value / 1e66).toStringAsFixed(2)}Uvg';
+    if (value < 999.995e69) return '${(value / 1e69).toStringAsFixed(2)}Dvg';
+    if (value < 999.995e72) return '${(value / 1e72).toStringAsFixed(2)}Tvg';
+    if (value < 999.995e75) return '${(value / 1e75).toStringAsFixed(2)}Qvg';
+    if (value < 999.995e78) return '${(value / 1e78).toStringAsFixed(2)}Qnv';
+    if (value < 999.995e81) return '${(value / 1e81).toStringAsFixed(2)}Svg';
+    if (value < 999.995e84) return '${(value / 1e84).toStringAsFixed(2)}Spv';
+    if (value < 999.995e87) return '${(value / 1e87).toStringAsFixed(2)}Ovg';
+    if (value < 999.995e90) return '${(value / 1e90).toStringAsFixed(2)}Nvg';
+    if (value < 999.995e93) return '${(value / 1e93).toStringAsFixed(2)}Tg';
+    if (value < 999.995e96) return '${(value / 1e96).toStringAsFixed(2)}Utg';
+    if (value < 999.995e99) return '${(value / 1e99).toStringAsFixed(2)}Dtg';
+    if (value < 999.995e102) return '${(value / 1e102).toStringAsFixed(2)}Ttg';
+    if (value < 999.995e105) return '${(value / 1e105).toStringAsFixed(2)}Qtg';
+    if (value < 999.995e108) return '${(value / 1e108).toStringAsFixed(2)}Qnt';
+    if (value < 999.995e111) return '${(value / 1e111).toStringAsFixed(2)}Stg';
+    if (value < 999.995e114) return '${(value / 1e114).toStringAsFixed(2)}Spt';
+    if (value < 999.995e117) return '${(value / 1e117).toStringAsFixed(2)}Otg';
+    if (value < 999.995e120) return '${(value / 1e120).toStringAsFixed(2)}Ntg';
+    return value.toStringAsExponential(2);
   }
   
   /// Format time duration
@@ -1943,11 +1908,8 @@ class GameProvider extends ChangeNotifier {
   int get claimedAchievementCount => _state.claimedAchievements.length;
   
   /// Get unclaimed achievement count
-  int get unclaimedAchievementCount {
-    // Ensure we don't show negative numbers even if state is slightly out of sync
-    final count = _state.unlockedAchievements.length - _state.claimedAchievements.length;
-    return count < 0 ? 0 : count;
-  }
+  int get unclaimedAchievementCount => 
+      _state.unlockedAchievements.length - _state.claimedAchievements.length;
   
   // ═══════════════════════════════════════════════════════════════
   // SETTINGS

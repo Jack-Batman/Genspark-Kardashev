@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import '../core/constants.dart';
 import '../core/era_data.dart';
 import '../providers/game_provider.dart';
@@ -259,6 +258,10 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
       case Era.universal:
         emoji = '💠'; // Energy shape
         glowColor = Colors.pink;
+        break;
+      case Era.multiversal:
+        emoji = '🌀'; // Vortex
+        glowColor = Colors.cyanAccent;
         break;
     }
 

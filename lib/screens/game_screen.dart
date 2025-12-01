@@ -138,28 +138,22 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: _buildTopHUD(gameProvider),
                 ),
 
-                // Era Selector & Ascension Banner (grouped to handle dynamic height)
-                if (gameProvider.state.unlockedEras.length > 1 || _isEraTransitionAvailable(gameProvider))
+                // Era selector (if multiple eras unlocked) - moved down to avoid overlap
+                if (gameProvider.state.unlockedEras.length > 1)
                   Positioned(
                     top: 130,
                     left: 16,
                     right: 16,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (gameProvider.state.unlockedEras.length > 1)
-                          _buildEraSelector(gameProvider),
-                        
-                        if (_isEraTransitionAvailable(gameProvider))
-                          Padding(
-                            padding: EdgeInsets.only(
-                              top: gameProvider.state.unlockedEras.length > 1 ? 12.0 : 0,
-                            ),
-                            child: _buildEraAscensionBanner(gameProvider),
-                          ),
-                      ],
-                    ),
+                    child: _buildEraSelector(gameProvider),
+                  ),
+
+                // Era Ascension Available Banner
+                if (_isEraTransitionAvailable(gameProvider))
+                  Positioned(
+                    top: gameProvider.state.unlockedEras.length > 1 ? 180 : 130,
+                    left: 16,
+                    right: 16,
+                    child: _buildEraAscensionBanner(gameProvider),
                   ),
 
                 // Menu Overlay (Background Scrim & Content)
@@ -415,7 +409,6 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   /// Build the Era Ascension banner
   Widget _buildEraAscensionBanner(GameProvider gameProvider) {
     final transition = gameProvider.state.nextTransition!;
-    final eraConfig = gameProvider.state.eraConfig;
     final canAfford = gameProvider.state.energy >= transition.energyCost;
     
     return GestureDetector(
@@ -572,56 +565,61 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEraSelector(GameProvider gameProvider) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.start,
-      children: gameProvider.state.unlockedEras.map((eraIndex) {
-        final era = Era.values[eraIndex];
-        final config = eraConfigs[era]!;
-        final isSelected = gameProvider.state.currentEra == eraIndex;
-        
-        return GestureDetector(
-          onTap: () => gameProvider.switchEra(era),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: isSelected 
-                  ? config.primaryColor.withValues(alpha: 0.3)
-                  : Colors.black.withValues(alpha: 0.3),
-              border: Border.all(
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: gameProvider.state.unlockedEras.length,
+        itemBuilder: (context, index) {
+          final eraIndex = gameProvider.state.unlockedEras[index];
+          final era = Era.values[eraIndex];
+          final config = eraConfigs[era]!;
+          final isSelected = gameProvider.state.currentEra == eraIndex;
+          
+          return GestureDetector(
+            onTap: () => gameProvider.switchEra(era),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
                 color: isSelected 
-                    ? config.primaryColor
-                    : Colors.white.withValues(alpha: 0.2),
-                width: isSelected ? 2 : 1,
+                    ? config.primaryColor.withValues(alpha: 0.3)
+                    : Colors.black.withValues(alpha: 0.3),
+                border: Border.all(
+                  color: isSelected 
+                      ? config.primaryColor
+                      : Colors.white.withValues(alpha: 0.2),
+                  width: isSelected ? 2 : 1,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _getEraIcon(era),
+                    size: 16,
+                    color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    config.subtitle,
+                    style: TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _getEraIcon(era),
-                  size: 16,
-                  color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  config.subtitle,
-                  style: TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 11,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
-                    letterSpacing: 1,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+          );
+        },
+      ),
     );
   }
 
@@ -635,6 +633,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
         return Icons.blur_circular;
       case Era.universal:
         return Icons.all_inclusive;
+      case Era.multiversal:
+        return Icons.bubble_chart;
     }
   }
 

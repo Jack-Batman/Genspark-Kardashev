@@ -36,6 +36,124 @@ class EraVisuals {
       case Era.universal:
         _drawUniverse(canvas, techLevel);
         break;
+      case Era.multiversal:
+        _drawMultiverse(canvas, techLevel);
+        break;
+    }
+  }
+
+  /// Draw Era V - Multiverse/Void
+  void _drawMultiverse(Canvas canvas, double techLevel) {
+    // Void background with timeline threads
+    _drawVoidThreads(canvas, techLevel);
+    
+    // Omniversal core
+    _drawOmniversalCore(canvas, techLevel);
+    
+    // Brane collisions
+    if (techLevel > 0.2) {
+      _drawBraneCollisions(canvas, techLevel);
+    }
+    
+    // Reality bubbles (multiple universes)
+    if (techLevel > 0.5) {
+      _drawMultiverseBubbles(canvas, techLevel);
+    }
+  }
+
+  void _drawVoidThreads(Canvas canvas, double techLevel) {
+    final paint = Paint()
+      ..color = const Color(0xFF6200EA).withValues(alpha: 0.2)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final fixedRandom = Random(777);
+    
+    for (int i = 0; i < 20; i++) {
+      final path = Path();
+      final startAngle = fixedRandom.nextDouble() * 2 * pi;
+      final radius = 100.0 + fixedRandom.nextDouble() * 50;
+      
+      for (double t = 0; t < 2 * pi; t += 0.2) {
+        final r = radius + 10 * sin(t * 3 + _wavePhase);
+        final angle = startAngle + t + _rotation * 0.2;
+        final x = cos(angle) * r;
+        final y = sin(angle) * r;
+        
+        if (t == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+      path.close();
+      canvas.drawPath(path, paint);
+    }
+  }
+
+  void _drawOmniversalCore(Canvas canvas, double techLevel) {
+    final radius = 40.0 + 5 * sin(_pulse * 2);
+    
+    // Core glow
+    canvas.drawCircle(
+      Offset.zero,
+      radius + 20,
+      Paint()
+        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.3)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
+    );
+    
+    // Solid core
+    canvas.drawCircle(
+      Offset.zero,
+      radius,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Colors.white, Color(0xFF6200EA), Colors.black],
+          stops: [0.2, 0.6, 1.0],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: radius)),
+    );
+  }
+
+  void _drawBraneCollisions(Canvas canvas, double techLevel) {
+    final paint = Paint()
+      ..color = const Color(0xFFFF00FF).withValues(alpha: 0.4)
+      ..style = PaintingStyle.fill;
+      
+    final count = (5 * techLevel).round();
+    final fixedRandom = Random(888);
+    
+    for (int i = 0; i < count; i++) {
+      final angle = fixedRandom.nextDouble() * 2 * pi + _rotation;
+      final dist = 60 + fixedRandom.nextDouble() * 40;
+      final x = cos(angle) * dist;
+      final y = sin(angle) * dist;
+      
+      canvas.drawCircle(
+        Offset(x, y),
+        8 + 4 * sin(_pulse + i),
+        paint,
+      );
+    }
+  }
+
+  void _drawMultiverseBubbles(Canvas canvas, double techLevel) {
+    final bubblePaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+      
+    final count = (10 * techLevel).round();
+    final fixedRandom = Random(999);
+    
+    for (int i = 0; i < count; i++) {
+      final angle = fixedRandom.nextDouble() * 2 * pi - _rotation * 0.5;
+      final dist = 120 + fixedRandom.nextDouble() * 80;
+      final x = cos(angle) * dist;
+      final y = sin(angle) * dist;
+      final r = 10 + fixedRandom.nextDouble() * 15;
+      
+      bubblePaint.color = HSLColor.fromAHSL(0.5, (i * 30.0) % 360, 1.0, 0.5).toColor();
+      canvas.drawCircle(Offset(x, y), r, bubblePaint);
     }
   }
   

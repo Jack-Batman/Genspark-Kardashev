@@ -188,10 +188,14 @@ class GameState extends HiveObject {
   // Monthly DM claimed
   @HiveField(55)
   DateTime? lastMonthlyDMClaimed;
+
+  @HiveField(56)
+  double darkEnergy;
   
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
+    this.darkEnergy = 0,
     this.kardashevLevel = 0.0,
     this.currentEra = 0,
     Map<String, int>? generators,
@@ -637,6 +641,7 @@ class GameState extends HiveObject {
       activeParticles: activeParticles ?? this.activeParticles,
       ownedCosmetics: ownedCosmetics ?? List.from(this.ownedCosmetics),
       lastMonthlyDMClaimed: lastMonthlyDMClaimed ?? this.lastMonthlyDMClaimed,
+      darkEnergy: darkEnergy ?? this.darkEnergy,
     );
   }
   

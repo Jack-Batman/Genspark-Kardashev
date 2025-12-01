@@ -9,6 +9,7 @@ enum AdPlacement {
   expeditionRetry,          // Retry failed expedition
   freeTimeWarp,             // Free 1-hour time warp
   challengeExtension,       // Extend challenge time
+  timedBonusReward,         // Timed popup bonus (5-10 min intervals)
 }
 
 /// Ad placement configuration
@@ -57,6 +58,12 @@ const Map<AdPlacement, AdPlacementConfig> adPlacements = {
     name: 'Challenge Extension',
     description: 'Watch an ad to extend challenge deadline',
     dailyLimit: 2,
+  ),
+  AdPlacement.timedBonusReward: AdPlacementConfig(
+    name: 'Bonus Reward',
+    description: 'Watch an ad for 5 minutes worth of Energy or Dark Matter',
+    dailyLimit: 10, // More generous limit for timed bonuses
+    cooldown: Duration(minutes: 5), // 5 minute cooldown between claims
   ),
 };
 
@@ -235,6 +242,8 @@ class AdService {
         return 1; // 1 hour of production
       case AdPlacement.challengeExtension:
         return 2; // 2 hours extension
+      case AdPlacement.timedBonusReward:
+        return baseValue; // 5 minutes of energy production (calculated by caller)
     }
   }
   

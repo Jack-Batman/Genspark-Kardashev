@@ -1,29 +1,32 @@
 import http.server
 import socketserver
+import os
 
-class CORSHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory="/home/user/flutter_app/build/web", **kwargs)
-    
+PORT = 5060
+
+class CORSRequestHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        self.send_header('Access-Control-Allow-Headers', '*')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.send_header('X-Frame-Options', 'ALLOWALL')
-        self.send_header('Content-Security-Policy', 'frame-ancestors *')
-        self.send_header('Cross-Origin-Embedder-Policy', 'unsafe-none')
-        self.send_header('Cross-Origin-Opener-Policy', 'unsafe-none')
-        self.send_header('Cross-Origin-Resource-Policy', 'cross-origin')
+        self.send_header('Content-Security-Policy', "frame-ancestors *")
         super().end_headers()
-    
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.end_headers()
 
-class ReuseAddrTCPServer(socketserver.TCPServer):
-    allow_reuse_address = True
+# Change to the correct directory
+web_dir = '/home/user/flutter_app/build/web'
+if os.path.exists(web_dir):
+    os.chdir(web_dir)
+    print(f"Serving {web_dir} on port {PORT}")
+else:
+    print(f"Error: {web_dir} does not exist")
+    exit(1)
 
-if __name__ == "__main__":
-    with ReuseAddrTCPServer(("0.0.0.0", 5060), CORSHandler) as httpd:
-        print("Serving on port 5060...")
-        httpd.serve_forever()
+with socketserver.TCPServer(('0.0.0.0', PORT), CORSRequestHandler) as httpd:
+    httpd.allow_reuse_address = True
+    print(f"Serving at port {PORT}")
+    httpd.serve_forever()

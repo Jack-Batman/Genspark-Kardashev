@@ -302,10 +302,16 @@ class EnergyCounter extends StatelessWidget {
   
   String _formatValue(double value) {
     if (value < 1000) return value.toStringAsFixed(1);
-    if (value < 1000000) return '${(value / 1000).toStringAsFixed(2)}K';
-    if (value < 1000000000) return '${(value / 1000000).toStringAsFixed(2)}M';
-    if (value < 1000000000000) return '${(value / 1000000000).toStringAsFixed(2)}B';
-    return '${(value / 1000000000000).toStringAsFixed(2)}T';
+    if (value < 999.995e3) return '${(value / 1e3).toStringAsFixed(2)}K';
+    if (value < 999.995e6) return '${(value / 1e6).toStringAsFixed(2)}M';
+    if (value < 999.995e9) return '${(value / 1e9).toStringAsFixed(2)}B';
+    if (value < 999.995e12) return '${(value / 1e12).toStringAsFixed(2)}T';
+    if (value < 999.995e15) return '${(value / 1e15).toStringAsFixed(2)}Q';
+    if (value < 999.995e18) return '${(value / 1e18).toStringAsFixed(2)}Qi';
+    if (value < 999.995e21) return '${(value / 1e21).toStringAsFixed(2)}Sx';
+    if (value < 999.995e24) return '${(value / 1e24).toStringAsFixed(2)}Sp';
+    if (value < 999.995e27) return '${(value / 1e27).toStringAsFixed(2)}Oc';
+    return '${(value / 1e30).toStringAsFixed(2)}No';
   }
 }
 

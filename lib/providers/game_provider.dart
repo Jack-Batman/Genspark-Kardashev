@@ -21,17 +21,17 @@ import '../widgets/tutorial_manager.dart';
 
 /// Dynamic prestige information
 class PrestigeInfo {
-  final double darkMatterReward;
+  final double darkEnergyReward;
   final double productionBonusGain;
-  final double totalDarkMatter;
+  final double totalDarkEnergy;
   final double totalProductionBonus;
   final String tierName;
   final double requiredKardashev;
   
   const PrestigeInfo({
-    required this.darkMatterReward,
+    required this.darkEnergyReward,
     required this.productionBonusGain,
-    required this.totalDarkMatter,
+    required this.totalDarkEnergy,
     required this.totalProductionBonus,
     required this.tierName,
     required this.requiredKardashev,
@@ -223,6 +223,36 @@ class GameProvider extends ChangeNotifier {
           if (loadedState != null) {
             _state = loadedState;
             loadedSuccessfully = true;
+            
+            // Sanity check: Deduplicate lists and ensure consistency
+            // Fixes negative unclaimed count issue due to duplicates or sync errors
+            bool stateModified = false;
+
+            // 1. Deduplicate unlocked achievements
+            final uniqueUnlocked = _state.unlockedAchievements.toSet().toList();
+            if (uniqueUnlocked.length != _state.unlockedAchievements.length) {
+              _state.unlockedAchievements = uniqueUnlocked;
+              stateModified = true;
+            }
+
+            // 2. Deduplicate claimed achievements
+            final uniqueClaimed = _state.claimedAchievements.toSet().toList();
+            if (uniqueClaimed.length != _state.claimedAchievements.length) {
+              _state.claimedAchievements = uniqueClaimed;
+              stateModified = true;
+            }
+
+            // 3. Ensure all claimed achievements are actually unlocked
+            for (final claimedId in _state.claimedAchievements) {
+              if (!_state.unlockedAchievements.contains(claimedId)) {
+                _state.unlockedAchievements.add(claimedId);
+                stateModified = true;
+              }
+            }
+
+            if (stateModified) {
+              await _saveGame();
+            }
             
             // Calculate offline earnings
             _offlineEarnings = _state.calculateOfflineEarnings();
@@ -514,6 +544,16 @@ class GameProvider extends ChangeNotifier {
   void dismissEraTransition() {
     _showEraTransition = false;
     _eraTransitionDismissedAt = DateTime.now();  // Track dismissal time
+    notifyListeners();
+  }
+  
+  /// Add energy (used by ad rewards, bonuses, etc.)
+  void addEnergy(double amount) {
+    if (amount <= 0) return;
+    _state.energy += amount;
+    _state.totalEnergyEarned += amount;
+    _state.updateKardashevLevel();
+    _saveGame();
     notifyListeners();
   }
   
@@ -997,6 +1037,25 @@ class GameProvider extends ChangeNotifier {
     _state.energy += energyGain;
     _state.totalEnergyEarned += energyGain;
     
+    // Advance research progress if active
+    if (_currentResearchId != null) {
+      final warpSeconds = hours * 3600;
+      _researchProgress += warpSeconds;
+      
+      // Check if research completed instantly due to warp
+      if (_researchProgress >= _researchTotal) {
+        final research = getResearchNodeById(_currentResearchId!);
+        if (research != null) {
+          // Cancel existing timer to prevent double-completion
+          _researchTimer?.cancel();
+          _researchTimer = null;
+          
+          // Complete the research immediately
+          _completeResearchV2(research);
+        }
+      }
+    }
+    
     HapticService.heavyImpact();
     AudioService.playPurchase();
     _saveGame();
@@ -1283,6 +1342,21 @@ class GameProvider extends ChangeNotifier {
           final energyGain = _state.energyPerSecond * 3600 * reward.amount;
           _state.energy += energyGain;
           _state.totalEnergyEarned += energyGain;
+          
+          // Advance research (Time Warp consistency)
+          if (_currentResearchId != null) {
+            final warpSeconds = (reward.amount * 3600).toInt();
+            _researchProgress += warpSeconds;
+            
+            if (_researchProgress >= _researchTotal) {
+              final research = getResearchNodeById(_currentResearchId!);
+              if (research != null) {
+                _researchTimer?.cancel();
+                _researchTimer = null;
+                _completeResearchV2(research);
+              }
+            }
+          }
       }
     }
     
@@ -1543,9 +1617,9 @@ class GameProvider extends ChangeNotifier {
     return research;
   }
   
-  /// Calculate Dark Matter reward based on progress (Egg Inc style)
+  /// Calculate Dark Energy reward based on progress
   /// Uses cube root formula for diminishing returns
-  double calculateDarkMatterReward() {
+  double calculateDarkEnergyReward() {
     // Base calculation on total energy earned this run
     final currentRunEnergy = _state.totalEnergyEarned;
     
@@ -1553,15 +1627,15 @@ class GameProvider extends ChangeNotifier {
     if (currentRunEnergy <= 0) return 0;
     
     // Cube root formula for diminishing returns (like Soul Eggs in Egg Inc)
-    // Scale factor adjusts for game balance
-    final scaleFactor = _state.kardashevLevel < 1.0 ? 0.5 :
-                       _state.kardashevLevel < 2.0 ? 2.0 :
-                       _state.kardashevLevel < 3.0 ? 10.0 : 50.0;
+    // Scale factor adjusts for game balance - optimized for Dark Energy
+    final scaleFactor = _state.kardashevLevel < 1.0 ? 1.0 :
+                       _state.kardashevLevel < 2.0 ? 5.0 :
+                       _state.kardashevLevel < 3.0 ? 25.0 : 100.0;
     
     final reward = pow(currentRunEnergy / 1000000, 1/3) * scaleFactor;
     
     // Ensure minimum reward based on Kardashev level reached
-    final minReward = _state.kardashevLevel * 10;
+    final minReward = _state.kardashevLevel * 5;
     
     // Guard against NaN/Infinity
     final finalReward = max(reward, minReward);
@@ -1570,15 +1644,14 @@ class GameProvider extends ChangeNotifier {
     return finalReward;
   }
   
-  /// Calculate production bonus from Dark Matter
-  /// Each Dark Matter gives meaningful bonus with diminishing returns
-  double calculateProductionBonusFromDarkMatter(double darkMatter) {
-    if (darkMatter <= 0) return 0;
+  /// Calculate production bonus from Dark Energy
+  /// Each Dark Energy gives meaningful bonus
+  double calculateProductionBonusFromDarkEnergy(double darkEnergy) {
+    if (darkEnergy <= 0) return 0;
     
-    // More generous formula: sqrt scaling with higher multiplier
-    // Formula: bonus = sqrt(darkMatter) * 0.05
-    // Examples: 10 DM = ~16% bonus, 50 DM = ~35% bonus, 100 DM = 50% bonus, 400 DM = 100% bonus
-    return sqrt(darkMatter) * 0.05;
+    // Linear formula: Each Dark Energy gives +10% production bonus
+    // This prevents diminishing returns and keeps prestige rewarding at higher levels
+    return darkEnergy * 0.10; 
   }
   
   /// Prestige - Reset progress for permanent bonus
@@ -1587,20 +1660,22 @@ class GameProvider extends ChangeNotifier {
     if (_state.kardashevLevel < 0.3) return false;
     
     // Calculate dynamic rewards based on progress
-    final darkMatterReward = calculateDarkMatterReward();
-    final totalDarkMatter = _state.darkMatter + darkMatterReward;
+    final darkEnergyReward = calculateDarkEnergyReward();
+    final totalDarkEnergy = _state.darkEnergy + darkEnergyReward;
     
-    // Calculate new production bonus from total Dark Matter
-    final newProductionBonus = calculateProductionBonusFromDarkMatter(totalDarkMatter);
+    // Calculate new production bonus from total Dark Energy
+    final newProductionBonus = calculateProductionBonusFromDarkEnergy(totalDarkEnergy);
     
     // Preserve important data
     final preservedArchitects = List<String>.from(_state.ownedArchitects);
     final newPrestigeCount = _state.prestigeCount + 1;
     final preservedUnlockedEras = List<int>.from(_state.unlockedEras);
     final preservedClaimedAchievements = List<String>.from(_state.claimedAchievements); // Keep claimed achievements
+    final preservedUnlockedAchievements = List<String>.from(_state.unlockedAchievements); // Keep unlocked achievements
     final preservedArtifactIds = List<String>.from(_state.ownedArtifactIds); // Keep artifacts
     final preservedArtifactAcquiredAt = Map<String, int>.from(_state.artifactAcquiredAt);
     final preservedArtifactSources = Map<String, String>.from(_state.artifactSources);
+    final preservedDarkMatter = _state.darkMatter; // Dark Matter is preserved but no longer gives bonus
     
     // Determine prestige tier based on total prestiges (for display/achievements)
     final newPrestigeTier = min(_state.prestigeTier + 1, prestigeTiers.length);
@@ -1608,16 +1683,18 @@ class GameProvider extends ChangeNotifier {
     // Reset to new game state but keep prestige rewards
     _state = GameState(
       energy: 50,
-      darkMatter: totalDarkMatter,
+      darkMatter: preservedDarkMatter, // Keep existing Dark Matter (spending currency)
+      darkEnergy: totalDarkEnergy, // New Dark Energy total
       generators: {'wind_turbine': 1},
       generatorLevels: {'wind_turbine': 1},
       ownedArchitects: preservedArchitects,
       prestigeCount: newPrestigeCount,
-      prestigeBonus: newProductionBonus,
+      prestigeBonus: newProductionBonus, // Bonus comes from Dark Energy now
       prestigeTier: newPrestigeTier,
       tutorialCompleted: true,
       unlockedEras: preservedUnlockedEras, // Keep eras unlocked
       claimedAchievements: preservedClaimedAchievements, // Keep claimed achievements (no double rewards)
+      unlockedAchievements: preservedUnlockedAchievements, // Keep unlocked achievements
       ownedArtifactIds: preservedArtifactIds, // Keep artifacts
       artifactAcquiredAt: preservedArtifactAcquiredAt,
       artifactSources: preservedArtifactSources,
@@ -1634,26 +1711,26 @@ class GameProvider extends ChangeNotifier {
   PrestigeInfo? getNextPrestigeInfo() {
     if (_state.kardashevLevel < 0.3) return null;
     
-    final darkMatterReward = calculateDarkMatterReward();
-    final totalDarkMatter = _state.darkMatter + darkMatterReward;
+    final darkEnergyReward = calculateDarkEnergyReward();
+    final totalDarkEnergy = _state.darkEnergy + darkEnergyReward;
     
-    // Calculate production bonus from dark matter only (not including research bonuses)
-    // Current bonus from current dark matter
-    final currentDarkMatterBonus = calculateProductionBonusFromDarkMatter(_state.darkMatter);
-    // New bonus from total dark matter after prestige
-    final newDarkMatterBonus = calculateProductionBonusFromDarkMatter(totalDarkMatter);
-    // The gain is the difference between new and current dark matter bonuses
-    final bonusGain = newDarkMatterBonus - currentDarkMatterBonus;
+    // Calculate production bonus from dark energy only
+    // Current bonus from current dark energy
+    final currentBonus = calculateProductionBonusFromDarkEnergy(_state.darkEnergy);
+    // New bonus from total dark energy after prestige
+    final newBonus = calculateProductionBonusFromDarkEnergy(totalDarkEnergy);
+    // The gain is the difference
+    final bonusGain = newBonus - currentBonus;
     
     // Get tier name for display
     final nextTierIndex = min(_state.prestigeTier + 1, prestigeTiers.length - 1);
     final tierName = prestigeTiers[nextTierIndex].name;
     
     return PrestigeInfo(
-      darkMatterReward: darkMatterReward,
+      darkEnergyReward: darkEnergyReward,
       productionBonusGain: bonusGain,
-      totalDarkMatter: totalDarkMatter,
-      totalProductionBonus: newDarkMatterBonus,
+      totalDarkEnergy: totalDarkEnergy,
+      totalProductionBonus: newBonus,
       tierName: tierName,
       requiredKardashev: 0.3,
     );
@@ -1672,15 +1749,15 @@ class GameProvider extends ChangeNotifier {
     if (value == 0) return '0';
     
     if (value < 1000) return value.toStringAsFixed(1);
-    if (value < 1000000) return '${(value / 1000).toStringAsFixed(2)}K';
-    if (value < 1000000000) return '${(value / 1000000).toStringAsFixed(2)}M';
-    if (value < 1e12) return '${(value / 1e9).toStringAsFixed(2)}B';
-    if (value < 1e15) return '${(value / 1e12).toStringAsFixed(2)}T';
-    if (value < 1e18) return '${(value / 1e15).toStringAsFixed(2)}Q';
-    if (value < 1e21) return '${(value / 1e18).toStringAsFixed(2)}Qi';
-    if (value < 1e24) return '${(value / 1e21).toStringAsFixed(2)}Sx';
-    if (value < 1e27) return '${(value / 1e24).toStringAsFixed(2)}Sp';
-    if (value < 1e30) return '${(value / 1e27).toStringAsFixed(2)}Oc';
+    if (value < 999.995e3) return '${(value / 1e3).toStringAsFixed(2)}K';
+    if (value < 999.995e6) return '${(value / 1e6).toStringAsFixed(2)}M';
+    if (value < 999.995e9) return '${(value / 1e9).toStringAsFixed(2)}B';
+    if (value < 999.995e12) return '${(value / 1e12).toStringAsFixed(2)}T';
+    if (value < 999.995e15) return '${(value / 1e15).toStringAsFixed(2)}Q';
+    if (value < 999.995e18) return '${(value / 1e18).toStringAsFixed(2)}Qi';
+    if (value < 999.995e21) return '${(value / 1e21).toStringAsFixed(2)}Sx';
+    if (value < 999.995e24) return '${(value / 1e24).toStringAsFixed(2)}Sp';
+    if (value < 999.995e27) return '${(value / 1e27).toStringAsFixed(2)}Oc';
     return '${(value / 1e30).toStringAsFixed(2)}No';
   }
   
@@ -1866,8 +1943,11 @@ class GameProvider extends ChangeNotifier {
   int get claimedAchievementCount => _state.claimedAchievements.length;
   
   /// Get unclaimed achievement count
-  int get unclaimedAchievementCount => 
-      _state.unlockedAchievements.length - _state.claimedAchievements.length;
+  int get unclaimedAchievementCount {
+    // Ensure we don't show negative numbers even if state is slightly out of sync
+    final count = _state.unlockedAchievements.length - _state.claimedAchievements.length;
+    return count < 0 ? 0 : count;
+  }
   
   // ═══════════════════════════════════════════════════════════════
   // SETTINGS

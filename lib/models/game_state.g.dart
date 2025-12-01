@@ -73,13 +73,14 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       activeParticles: fields[53] as String?,
       ownedCosmetics: (fields[54] as List?)?.cast<String>(),
       lastMonthlyDMClaimed: fields[55] as DateTime?,
+      darkEnergy: fields[56] == null ? 0.0 : fields[56] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(56)
+      ..writeByte(57)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -191,7 +192,9 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(54)
       ..write(obj.ownedCosmetics)
       ..writeByte(55)
-      ..write(obj.lastMonthlyDMClaimed);
+      ..write(obj.lastMonthlyDMClaimed)
+      ..writeByte(56)
+      ..write(obj.darkEnergy);
   }
 
   @override

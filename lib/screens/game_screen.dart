@@ -23,6 +23,8 @@ import '../widgets/tutorial_manager.dart';
 import '../widgets/statistics_widget.dart';
 import '../widgets/notification_banner.dart';
 import '../widgets/store_screen.dart';
+import '../widgets/timed_ad_reward_button.dart';
+import '../widgets/flying_bonus_widget.dart';
 
 /// Main Game Screen - Multi-Era Support
 class GameScreen extends StatefulWidget {
@@ -35,10 +37,12 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   late KardashevGame _game;
   int _selectedTab = 0;
+  bool _isMenuOpen = false; // Track if the expandable menu is open
   // Entropy assistant removed
   bool _hasShownOfflineDialog = false;
 
   late AnimationController _tabAnimationController;
+  late AnimationController _menuAnimationController; // Animation for menu opening/closing
 
   @override
   void initState() {
@@ -49,11 +53,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    
+    _menuAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
   }
 
   @override
   void dispose() {
     _tabAnimationController.dispose();
+    _menuAnimationController.dispose();
     super.dispose();
   }
 
@@ -99,7 +109,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           currentEra: gameProvider.state.era,
         );
 
-        _game.onTapCallback = () => gameProvider.tap();
+        _game.onTapCallback = () {
+          if (_isMenuOpen) {
+            _closeMenu();
+          } else {
+            gameProvider.tap();
+          }
+        };
 
         return TutorialManagerWidget(
           eraConfig: eraConfig,
@@ -111,6 +127,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   // Game Canvas (Background)
                   Positioned.fill(child: GameWidget(game: _game)),
 
+                  // Flying Bonus Object (Alien Spaceship)
+                  Positioned.fill(child: FlyingBonusWidget(gameProvider: gameProvider)),
+
                   // Top HUD
                   Positioned(
                     top: 16,
@@ -119,30 +138,64 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   child: _buildTopHUD(gameProvider),
                 ),
 
-                // Era selector (if multiple eras unlocked) - moved down to avoid overlap
-                if (gameProvider.state.unlockedEras.length > 1)
+                // Era Selector & Ascension Banner (grouped to handle dynamic height)
+                if (gameProvider.state.unlockedEras.length > 1 || _isEraTransitionAvailable(gameProvider))
                   Positioned(
-                    top: 115,
+                    top: 130,
                     left: 16,
                     right: 16,
-                    child: _buildEraSelector(gameProvider),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (gameProvider.state.unlockedEras.length > 1)
+                          _buildEraSelector(gameProvider),
+                        
+                        if (_isEraTransitionAvailable(gameProvider))
+                          Padding(
+                            padding: EdgeInsets.only(
+                              top: gameProvider.state.unlockedEras.length > 1 ? 12.0 : 0,
+                            ),
+                            child: _buildEraAscensionBanner(gameProvider),
+                          ),
+                      ],
+                    ),
                   ),
 
-                // Era Ascension Available Banner
-                if (_isEraTransitionAvailable(gameProvider))
-                  Positioned(
-                    top: gameProvider.state.unlockedEras.length > 1 ? 165 : 115,
-                    left: 16,
-                    right: 16,
-                    child: _buildEraAscensionBanner(gameProvider),
+                // Menu Overlay (Background Scrim & Content)
+                if (_isMenuOpen)
+                  Positioned.fill(
+                    child: Stack(
+                      children: [
+                        // Scrim - tap to close
+                        GestureDetector(
+                          onTap: _closeMenu,
+                          behavior: HitTestBehavior.opaque, // Catch all touches
+                          child: Container(
+                            color: Colors.black.withValues(alpha: 0.5), // Dim background
+                          ),
+                        ),
+                        // Menu Content - Sliding up
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 85), // Leave space for nav bar
+                            child: SizedBox(
+                              height: MediaQuery.of(context).size.height * 0.75, // 75% height
+                              child: _buildExpandedMenu(gameProvider),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
-                // Bottom Panel
+                // Bottom Navigation Bar (Always visible)
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: _buildBottomPanel(gameProvider),
+                  child: _buildBottomNavigationBar(gameProvider),
                 ),
 
                 // Tap Energy Feedback
@@ -161,7 +214,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                             child: Transform.translate(
                               offset: Offset(0, -50 * value),
                               child: Text(
-                                '+${gameProvider.tapEnergy.toStringAsFixed(1)}',
+                                '+${GameProvider.formatNumber(gameProvider.tapEnergy)}',
                                 style: TextStyle(
                                   fontFamily: 'Orbitron',
                                   fontSize: 24,
@@ -194,6 +247,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       }
                     },
                   ),
+
+                // Timed Ad Reward Button (appears every 5-10 minutes)
+                Positioned(
+                  right: 16,
+                  top: MediaQuery.of(context).size.height * 0.35,
+                  child: TimedAdRewardButton(
+                    gameProvider: gameProvider,
+                  ),
+                ),
 
                 // In-app Notification Banner Stack
                 Positioned(
@@ -510,61 +572,56 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEraSelector(GameProvider gameProvider) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: gameProvider.state.unlockedEras.length,
-        itemBuilder: (context, index) {
-          final eraIndex = gameProvider.state.unlockedEras[index];
-          final era = Era.values[eraIndex];
-          final config = eraConfigs[era]!;
-          final isSelected = gameProvider.state.currentEra == eraIndex;
-          
-          return GestureDetector(
-            onTap: () => gameProvider.switchEra(era),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.start,
+      children: gameProvider.state.unlockedEras.map((eraIndex) {
+        final era = Era.values[eraIndex];
+        final config = eraConfigs[era]!;
+        final isSelected = gameProvider.state.currentEra == eraIndex;
+        
+        return GestureDetector(
+          onTap: () => gameProvider.switchEra(era),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: isSelected 
+                  ? config.primaryColor.withValues(alpha: 0.3)
+                  : Colors.black.withValues(alpha: 0.3),
+              border: Border.all(
                 color: isSelected 
-                    ? config.primaryColor.withValues(alpha: 0.3)
-                    : Colors.black.withValues(alpha: 0.3),
-                border: Border.all(
-                  color: isSelected 
-                      ? config.primaryColor
-                      : Colors.white.withValues(alpha: 0.2),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _getEraIcon(era),
-                    size: 16,
-                    color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    config.subtitle,
-                    style: TextStyle(
-                      fontFamily: 'Orbitron',
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
+                    ? config.primaryColor
+                    : Colors.white.withValues(alpha: 0.2),
+                width: isSelected ? 2 : 1,
               ),
             ),
-          );
-        },
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getEraIcon(era),
+                  size: 16,
+                  color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  config.subtitle,
+                  style: TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 11,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -581,57 +638,42 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     }
   }
 
-  Widget _buildBottomPanel(GameProvider gameProvider) {
+  Widget _buildBottomNavigationBar(GameProvider gameProvider) {
     final eraConfig = gameProvider.state.eraConfig;
     
     return GlassContainer(
-      borderRadius: 24,
-      padding: EdgeInsets.zero,
-      margin: const EdgeInsets.all(0),
-      borderColor: eraConfig.primaryColor.withValues(alpha: 0.3),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      borderRadius: 0, // Full width bar
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 20), // Extra bottom padding for safe area
+      margin: EdgeInsets.zero,
+      borderColor: Colors.white.withValues(alpha: 0.1),
+      child: Row(
         children: [
-          // Tab Bar - Evenly spaced with equal margins (5 tabs now)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildTab(0, 'BUILD', Icons.construction, eraConfig, gameProvider: gameProvider),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _buildTab(1, 'RESEARCH', Icons.science, eraConfig, gameProvider: gameProvider),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _buildTab(2, 'ARCHITECTS', Icons.people, eraConfig, gameProvider: gameProvider),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _buildTab(
-                    3, 
-                    'GOALS', 
-                    Icons.emoji_events, 
-                    eraConfig, 
-                    gameProvider: gameProvider,
-                    showBadge: (gameProvider.unclaimedAchievementCount + gameProvider.unclaimedChallengeCount) > 0,
-                    badgeCount: gameProvider.unclaimedAchievementCount + gameProvider.unclaimedChallengeCount,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: _buildTab(4, 'STATS', Icons.analytics, eraConfig, gameProvider: gameProvider, showPrestigeBadge: gameProvider.getNextPrestigeInfo() != null && gameProvider.state.kardashevLevel >= (gameProvider.getNextPrestigeInfo()?.requiredKardashev ?? 999)),
-                ),
-              ],
+          Expanded(
+            child: _buildTab(0, 'BUILD', Icons.construction, eraConfig, gameProvider: gameProvider),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildTab(1, 'RESEARCH', Icons.science, eraConfig, gameProvider: gameProvider),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildTab(2, 'ARCHITECTS', Icons.people, eraConfig, gameProvider: gameProvider),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildTab(
+              3, 
+              'GOALS', 
+              Icons.emoji_events, 
+              eraConfig, 
+              gameProvider: gameProvider,
+              showBadge: (gameProvider.unclaimedAchievementCount + gameProvider.unclaimedChallengeCount) > 0,
+              badgeCount: gameProvider.unclaimedAchievementCount + gameProvider.unclaimedChallengeCount,
             ),
           ),
-
-          // Tab Content - Expanded to fill available space with more room
-          SizedBox(
-            height: 320,
-            child: _buildTabContent(gameProvider),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildTab(4, 'STATS', Icons.analytics, eraConfig, gameProvider: gameProvider, showPrestigeBadge: gameProvider.getNextPrestigeInfo() != null && gameProvider.state.kardashevLevel >= (gameProvider.getNextPrestigeInfo()?.requiredKardashev ?? 999)),
           ),
         ],
       ),
@@ -639,19 +681,25 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildTab(int index, String label, IconData icon, EraConfig eraConfig, {GameProvider? gameProvider, bool showPrestigeBadge = false, bool showBadge = false, int badgeCount = 0}) {
-    final isSelected = _selectedTab == index;
+    final isSelected = _selectedTab == index && _isMenuOpen; // Only highlight if menu is open
+    
     return GestureDetector(
       onTap: () {
         AudioService.playClick();
-        setState(() => _selectedTab = index);
-        _tabAnimationController.forward(from: 0);
+        if (_selectedTab == index && _isMenuOpen) {
+          _closeMenu();
+        } else {
+          setState(() => _selectedTab = index);
+          _openMenu();
+          _tabAnimationController.forward(from: 0);
+        }
       },
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               color:
@@ -672,18 +720,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   Icon(
                     icon,
                     color: isSelected ? eraConfig.accentColor : Colors.white.withValues(alpha: 0.5),
-                    size: 20,
+                    size: 24, // Larger icon
                   ),
                   const SizedBox(height: 4),
                   Text(
                     label,
                     style: TextStyle(
                       fontFamily: 'Orbitron',
-                      fontSize: 9,
+                      fontSize: 8,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       color:
                           isSelected ? eraConfig.accentColor : Colors.white.withValues(alpha: 0.5),
-                      letterSpacing: 1,
+                      letterSpacing: 0.5,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -731,6 +779,74 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       ),
     );
   }
+
+  void _closeMenu() {
+    if (!_isMenuOpen) return;
+    setState(() {
+      _isMenuOpen = false;
+    });
+    _menuAnimationController.reverse();
+    AudioService.playClick(); // Close sound
+  }
+
+  void _openMenu() {
+    if (_isMenuOpen) return;
+    setState(() {
+      _isMenuOpen = true;
+    });
+    _menuAnimationController.forward();
+  }
+
+  Widget _buildExpandedMenu(GameProvider gameProvider) {
+    final eraConfig = gameProvider.state.eraConfig;
+    
+    return GlassContainer(
+      borderRadius: 24,
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      borderColor: eraConfig.primaryColor.withValues(alpha: 0.3),
+      child: Column(
+        children: [
+          // Header with close button
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _getTabTitle(_selectedTab),
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: eraConfig.accentColor,
+                  letterSpacing: 2,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                onPressed: _closeMenu,
+              ),
+            ],
+          ),
+          const Divider(color: Colors.white24),
+          Expanded(
+            child: _buildTabContent(gameProvider),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getTabTitle(int index) {
+    switch (index) {
+      case 0: return 'CONSTRUCTION';
+      case 1: return 'RESEARCH LAB';
+      case 2: return 'ARCHITECTS';
+      case 3: return 'OBJECTIVES';
+      case 4: return 'STATISTICS';
+      default: return '';
+    }
+  }
+
 
   Widget _buildTabContent(GameProvider gameProvider) {
     switch (_selectedTab) {
@@ -1026,8 +1142,8 @@ class _PrestigeAvailableCardState extends State<_PrestigeAvailableCard> with Sin
                       widget.eraConfig,
                     ),
                     _buildRewardChip(
-                      '+${GameProvider.formatNumber(widget.nextPrestige.darkMatterReward)}',
-                      'Dark Matter',
+                      '+${GameProvider.formatNumber(widget.nextPrestige.darkEnergyReward)}',
+                      'Dark Energy',
                       widget.eraConfig,
                     ),
                   ],

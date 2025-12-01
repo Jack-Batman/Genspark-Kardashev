@@ -163,9 +163,9 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
             children: [
               Expanded(
                 child: _MetricCard(
-                  icon: Icons.dark_mode,
-                  label: 'Dark Matter',
-                  value: GameProvider.formatNumber(state.darkMatter),
+                  icon: Icons.auto_awesome,
+                  label: 'Dark Energy (+10%/unit)',
+                  value: GameProvider.formatNumber(state.darkEnergy),
                   color: Colors.purple,
                 ),
               ),
@@ -436,11 +436,27 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
             ),
             const SizedBox(height: 12),
             Text(
-              '+${GameProvider.formatNumber(nextPrestige.darkMatterReward)} Dark Matter',
+              '+${GameProvider.formatNumber(nextPrestige.darkEnergyReward)} Dark Energy',
               style: TextStyle(
                 fontFamily: 'Orbitron',
                 fontSize: 14,
                 color: eraConfig.primaryColor,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: const Text(
+                'Each Dark Energy grants +10% Total Production Bonus',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white70,
+                  fontStyle: FontStyle.italic,
+                ),
               ),
             ),
           ],
@@ -1178,7 +1194,7 @@ class _PrestigeProgressCard extends StatelessWidget {
               Column(
                 children: [
                   Text(
-                    '+${GameProvider.formatNumber(nextPrestige.darkMatterReward)}',
+                    '+${GameProvider.formatNumber(nextPrestige.darkEnergyReward)}',
                     style: const TextStyle(
                       fontFamily: 'Orbitron',
                       fontSize: 11,
@@ -1186,7 +1202,7 @@ class _PrestigeProgressCard extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Dark Matter',
+                    'Dark Energy',
                     style: TextStyle(
                       fontSize: 9,
                       color: Colors.white.withValues(alpha: 0.5),
@@ -1801,7 +1817,7 @@ class _PrestigeAvailableCardState extends State<_PrestigeAvailableCard>
                         ),
                       ),
                       Text(
-                        '+${(widget.nextPrestige.productionBonusGain * 100).toStringAsFixed(1)}% · +${GameProvider.formatNumber(widget.nextPrestige.darkMatterReward)} DM',
+                        '+${(widget.nextPrestige.productionBonusGain * 100).toStringAsFixed(1)}% · +${GameProvider.formatNumber(widget.nextPrestige.darkEnergyReward)} DE',
                         style: TextStyle(
                           fontSize: 9,
                           color: Colors.white.withValues(alpha: 0.7),

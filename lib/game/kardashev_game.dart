@@ -434,6 +434,12 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
       height: 2000,
     );
     
+    if (_currentEra == Era.multiversal) {
+      // Era V: True void - absolute black with subtle void energy at edges
+      _drawVoidBackground(canvas, rect);
+      return;
+    }
+    
     // Era-specific background gradient
     final gradient = RadialGradient(
       colors: [
@@ -450,27 +456,99 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
     );
   }
   
+  /// Era V specific: The Void - absolute nothingness with prismatic edges
+  void _drawVoidBackground(Canvas canvas, Rect rect) {
+    // Base: True black - the absence of everything
+    canvas.drawRect(
+      rect,
+      Paint()..color = Colors.black,
+    );
+    
+    // Subtle void energy gradient at the very edges - suggests infinite depth
+    final voidGradient = RadialGradient(
+      colors: [
+        Colors.black,
+        Colors.black,
+        const Color(0xFF050005), // Barely perceptible purple-black
+        const Color(0xFF080010), // Slightly more visible at far edges
+      ],
+      stops: const [0.0, 0.6, 0.85, 1.0],
+    );
+    
+    canvas.drawRect(
+      rect,
+      Paint()..shader = voidGradient.createShader(rect),
+    );
+    
+    // Prismatic void edge shimmer - reality breaking down at the boundaries
+    final edgeRadius = 900.0;
+    for (int i = 0; i < 12; i++) {
+      final angle = (i / 12) * 2 * pi + _animationTime * 0.05;
+      final hue = (i * 30 + _animationTime * 10) % 360;
+      final shimmerColor = HSVColor.fromAHSV(0.08, hue, 1.0, 1.0).toColor();
+      
+      final shimmerPath = Path();
+      final arcLength = pi / 8;
+      for (double t = -arcLength; t <= arcLength; t += 0.1) {
+        final r = edgeRadius + sin(t * 5 + _animationTime) * 30;
+        final a = angle + t;
+        if (t == -arcLength) {
+          shimmerPath.moveTo(cos(a) * r, sin(a) * r);
+        } else {
+          shimmerPath.lineTo(cos(a) * r, sin(a) * r);
+        }
+      }
+      
+      canvas.drawPath(
+        shimmerPath,
+        Paint()
+          ..color = shimmerColor
+          ..strokeWidth = 20
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40),
+      );
+    }
+  }
+  
   void _drawStars(Canvas canvas) {
     for (final star in _backgroundStars) {
       // Era affects star color tint
       Color starColor = Colors.white;
+      double starAlpha = star.currentBrightness * 0.8;
+      double starSize = star.size;
+      
       if (_currentEra == Era.stellar) {
         starColor = Color.lerp(Colors.white, _primaryColor, 0.2)!;
       } else if (_currentEra == Era.galactic) {
         starColor = Color.lerp(Colors.white, _primaryColor, 0.3)!;
-      } else if (_currentEra == Era.universal || _currentEra == Era.multiversal) {
-        // Rainbow-shifting stars in Era IV/V
+      } else if (_currentEra == Era.universal) {
+        // Rainbow-shifting stars in Era IV
         final hue = (star.position.x + star.position.y + _animationTime * 30) % 360;
         starColor = HSVColor.fromAHSV(1, hue.abs(), 0.3, 1.0).toColor();
+      } else if (_currentEra == Era.multiversal) {
+        // Era V: Stars are dying/fading into the void - much dimmer
+        // Only brightest stars visible, with prismatic flicker
+        starAlpha = star.currentBrightness * 0.25; // Much dimmer
+        starSize = star.size * 0.7; // Smaller
+        
+        // Occasional prismatic flicker
+        if ((star.position.x.abs() + star.position.y.abs() + _animationTime * 50).toInt() % 30 < 3) {
+          final hue = (_animationTime * 100 + star.position.x) % 360;
+          starColor = HSVColor.fromAHSV(1, hue.abs(), 1.0, 1.0).toColor();
+          starAlpha = 0.8; // Brief bright flash
+        } else {
+          // Fading white-purple
+          starColor = Color.lerp(Colors.white, const Color(0xFF6600CC), 0.5)!;
+        }
       }
       
       final paint = Paint()
-        ..color = starColor.withValues(alpha: star.currentBrightness * 0.8)
+        ..color = starColor.withValues(alpha: starAlpha)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1);
       
       canvas.drawCircle(
         Offset(star.position.x, star.position.y),
-        star.size,
+        starSize,
         paint,
       );
     }
@@ -547,7 +625,13 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
   }
   
   void _drawCosmicEffects(Canvas canvas) {
-    // Reality distortion waves
+    if (_currentEra == Era.multiversal) {
+      // Era V: Void pulse waves - expanding ripples of non-existence
+      _drawVoidPulseWaves(canvas);
+      return;
+    }
+    
+    // Era IV: Reality distortion waves
     for (int i = 0; i < 3; i++) {
       final waveRadius = 100 + i * 50 + sin(_animationTime + i) * 20;
       final waveAlpha = 0.1 * (1 - i / 3);
@@ -560,6 +644,60 @@ class KardashevGame extends FlameGame with TapCallbacks, ScaleDetector {
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
+    }
+  }
+  
+  /// Era V specific: Void pulse waves emanating from the Omniversal Throne
+  void _drawVoidPulseWaves(Canvas canvas) {
+    // Multiple expanding void waves at different phases
+    for (int wave = 0; wave < 4; wave++) {
+      // Each wave has its own phase
+      final wavePhase = (_animationTime * 0.5 + wave * 0.7) % 3.0;
+      final waveProgress = wavePhase / 3.0; // 0 to 1
+      
+      if (waveProgress < 0.9) {
+        final waveRadius = 50 + waveProgress * 200;
+        final waveAlpha = (1 - waveProgress) * 0.15; // Fade out as it expands
+        
+        // Prismatic wave color shifting through void spectrum
+        final hue = (wave * 90 + _animationTime * 30) % 360;
+        final waveColor = HSVColor.fromAHSV(waveAlpha, hue, 0.6, 1.0).toColor();
+        
+        // Draw wave ring
+        canvas.drawCircle(
+          Offset.zero,
+          waveRadius,
+          Paint()
+            ..color = waveColor
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3 - waveProgress * 2 // Thinner as it expands
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+        );
+        
+        // Inner bright edge
+        canvas.drawCircle(
+          Offset.zero,
+          waveRadius - 2,
+          Paint()
+            ..color = Colors.white.withValues(alpha: waveAlpha * 0.5)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
+    }
+    
+    // Void static - random pixels of reality glitching
+    final staticRandom = Random((_animationTime * 10).toInt());
+    for (int i = 0; i < 30; i++) {
+      final sx = (staticRandom.nextDouble() - 0.5) * 350;
+      final sy = (staticRandom.nextDouble() - 0.5) * 350;
+      final staticSize = 1 + staticRandom.nextDouble() * 3;
+      
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset(sx, sy), width: staticSize, height: staticSize),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.1 + staticRandom.nextDouble() * 0.2),
       );
     }
   }

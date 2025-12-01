@@ -995,6 +995,30 @@ class GameProvider extends ChangeNotifier {
     notifyListeners();
   }
   
+  /// Advance research timer by specified hours (used by time warp effects)
+  void _advanceResearchByTime(int hours) {
+    if (_currentResearchId == null || _researchTotal <= 0) return;
+    
+    final secondsToAdvance = hours * 3600; // Convert hours to seconds
+    _researchProgress += secondsToAdvance;
+    
+    // Check if research completed
+    if (_researchProgress >= _researchTotal) {
+      final research = getResearchNodeById(_currentResearchId!);
+      if (research != null) {
+        _researchProgress = _researchTotal;
+        _completeResearchV2(research);
+        _researchTimer?.cancel();
+      }
+    } else {
+      // Update the persisted start time to reflect the time warp
+      // This ensures offline calculation remains accurate
+      if (_state.researchStartTime != null) {
+        _state.researchStartTime = _state.researchStartTime!.subtract(Duration(hours: hours));
+      }
+    }
+  }
+  
   /// Activate time warp (costs dark matter)
   bool activateTimeWarp({int hours = 1}) {
     final cost = hours * 20.0; // 20 DM per hour
@@ -1006,6 +1030,9 @@ class GameProvider extends ChangeNotifier {
     final energyGain = _state.energyPerSecond * 3600 * hours;
     _state.energy += energyGain;
     _state.totalEnergyEarned += energyGain;
+    
+    // Advance research timer if research is in progress
+    _advanceResearchByTime(hours);
     
     HapticService.heavyImpact();
     AudioService.playPurchase();
@@ -1293,6 +1320,8 @@ class GameProvider extends ChangeNotifier {
           final energyGain = _state.energyPerSecond * 3600 * reward.amount;
           _state.energy += energyGain;
           _state.totalEnergyEarned += energyGain;
+          // Also advance research timer
+          _advanceResearchByTime(reward.amount.toInt());
       }
     }
     
@@ -1605,12 +1634,18 @@ class GameProvider extends ChangeNotifier {
     // Preserve important data
     final preservedArchitects = List<String>.from(_state.ownedArchitects);
     final newPrestigeCount = _state.prestigeCount + 1;
-    final preservedUnlockedEras = List<int>.from(_state.unlockedEras);
+    // NOTE: unlockedEras is NOT preserved - player must re-ascend to higher eras after prestige
+    final preservedUnlockedAchievements = List<String>.from(_state.unlockedAchievements); // Keep unlocked achievements (prevent re-notification)
     final preservedClaimedAchievements = List<String>.from(_state.claimedAchievements); // Keep claimed achievements
     final preservedArtifactIds = List<String>.from(_state.ownedArtifactIds); // Keep artifacts
     final preservedArtifactAcquiredAt = Map<String, int>.from(_state.artifactAcquiredAt);
     final preservedArtifactSources = Map<String, String>.from(_state.artifactSources);
     final preservedDarkMatter = _state.darkMatter; // Dark Matter is preserved but no longer gives bonus
+    
+    // Preserve daily login data (prevent re-claiming daily rewards after prestige)
+    final preservedLastLoginDate = _state.lastLoginDate;
+    final preservedLoginStreak = _state.loginStreak;
+    final preservedTotalLoginDays = _state.totalLoginDays;
     
     // Determine prestige tier based on total prestiges (for display/achievements)
     final newPrestigeTier = min(_state.prestigeTier + 1, prestigeTiers.length);
@@ -1627,12 +1662,21 @@ class GameProvider extends ChangeNotifier {
       prestigeBonus: newProductionBonus, // Bonus comes from Dark Energy now
       prestigeTier: newPrestigeTier,
       tutorialCompleted: true,
-      unlockedEras: preservedUnlockedEras, // Keep eras unlocked
+      unlockedEras: [0], // Reset to Era I only - player must re-ascend after prestige
+      unlockedAchievements: preservedUnlockedAchievements, // Keep unlocked achievements (prevent re-notification)
       claimedAchievements: preservedClaimedAchievements, // Keep claimed achievements (no double rewards)
       ownedArtifactIds: preservedArtifactIds, // Keep artifacts
       artifactAcquiredAt: preservedArtifactAcquiredAt,
       artifactSources: preservedArtifactSources,
+      // Preserve daily login data (prevent re-claiming daily rewards after prestige)
+      lastLoginDate: preservedLastLoginDate,
+      loginStreak: preservedLoginStreak,
+      totalLoginDays: preservedTotalLoginDays,
     );
+    
+    // Clear any pending achievement notifications to prevent stale popups
+    _pendingAchievementNotifications.clear();
+    _currentAchievementNotification = null;
     
     AudioService.playPrestige();
     HapticService.heavyImpact();
@@ -1740,7 +1784,9 @@ class GameProvider extends ChangeNotifier {
   /// Check all achievements and unlock newly earned ones
   void checkAchievements() {
     for (final achievement in allAchievements) {
+      // Skip if already unlocked OR already claimed (claimed = already shown before)
       if (_state.unlockedAchievements.contains(achievement.id)) continue;
+      if (_state.claimedAchievements.contains(achievement.id)) continue;
       
       if (_checkAchievementCondition(achievement.condition)) {
         _unlockAchievement(achievement);
@@ -1780,7 +1826,9 @@ class GameProvider extends ChangeNotifier {
   
   /// Unlock an achievement
   void _unlockAchievement(Achievement achievement) {
+    // Don't unlock if already unlocked or claimed
     if (_state.unlockedAchievements.contains(achievement.id)) return;
+    if (_state.claimedAchievements.contains(achievement.id)) return;
     
     _state.unlockedAchievements.add(achievement.id);
     _pendingAchievementNotifications.add(achievement);
@@ -1907,9 +1955,15 @@ class GameProvider extends ChangeNotifier {
   /// Get count of claimed achievements
   int get claimedAchievementCount => _state.claimedAchievements.length;
   
-  /// Get unclaimed achievement count
-  int get unclaimedAchievementCount => 
-      _state.unlockedAchievements.length - _state.claimedAchievements.length;
+  /// Get unclaimed achievement count (never negative)
+  int get unclaimedAchievementCount {
+    // Count achievements that are unlocked but not yet claimed
+    // Use set difference to handle edge cases correctly
+    final unclaimedCount = _state.unlockedAchievements
+        .where((id) => !_state.claimedAchievements.contains(id))
+        .length;
+    return unclaimedCount;
+  }
   
   // ═══════════════════════════════════════════════════════════════
   // SETTINGS

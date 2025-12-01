@@ -42,118 +42,517 @@ class EraVisuals {
     }
   }
 
-  /// Draw Era V - Multiverse/Void
+  /// Draw Era V - Multiverse/Void - TRANSCENDENT END-GAME VISUALS
   void _drawMultiverse(Canvas canvas, double techLevel) {
-    // Void background with timeline threads
-    _drawVoidThreads(canvas, techLevel);
+    // Layer 1: The Infinite Void with reality fractures
+    _drawInfiniteVoid(canvas, techLevel);
     
-    // Omniversal core
-    _drawOmniversalCore(canvas, techLevel);
+    // Layer 2: Void Tendrils reaching from beyond
+    _drawVoidTendrils(canvas, techLevel);
     
-    // Brane collisions
-    if (techLevel > 0.2) {
-      _drawBraneCollisions(canvas, techLevel);
+    // Layer 3: Timeline Cascade - infinite parallel realities
+    if (techLevel > 0.1) {
+      _drawTimelineCascade(canvas, techLevel);
     }
     
-    // Reality bubbles (multiple universes)
-    if (techLevel > 0.5) {
-      _drawMultiverseBubbles(canvas, techLevel);
+    // Layer 4: Reality Fractures - cracks in existence
+    if (techLevel > 0.2) {
+      _drawRealityFractures(canvas, techLevel);
+    }
+    
+    // Layer 5: The Omniversal Throne - impossible geometry central object
+    _drawOmniversalThrone(canvas, techLevel);
+    
+    // Layer 6: Dimensional Cascade - universes being born/dying
+    if (techLevel > 0.4) {
+      _drawDimensionalCascade(canvas, techLevel);
+    }
+    
+    // Layer 7: The Watchers - ancient entities at the edge
+    if (techLevel > 0.6) {
+      _drawCosmicWatchers(canvas, techLevel);
+    }
+    
+    // Layer 8: Logic Rewrite particles - reality being overwritten
+    if (techLevel > 0.8) {
+      _drawLogicRewriteEffect(canvas, techLevel);
     }
   }
 
-  void _drawVoidThreads(Canvas canvas, double techLevel) {
-    final paint = Paint()
-      ..color = const Color(0xFF6200EA).withValues(alpha: 0.2)
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    final fixedRandom = Random(777);
+  /// The Infinite Void - pure nothingness with subtle prismatic edges
+  void _drawInfiniteVoid(Canvas canvas, double techLevel) {
+    // Outer void gradient - deeper than black
+    final voidGradient = RadialGradient(
+      colors: [
+        const Color(0xFF050008), // Slightly purple void
+        const Color(0xFF000000), // True black
+        const Color(0xFF000003), // Hint of existence at edges
+      ],
+      stops: const [0.0, 0.5, 1.0],
+    );
     
-    for (int i = 0; i < 20; i++) {
-      final path = Path();
-      final startAngle = fixedRandom.nextDouble() * 2 * pi;
-      final radius = 100.0 + fixedRandom.nextDouble() * 50;
+    canvas.drawCircle(
+      Offset.zero,
+      300,
+      Paint()..shader = voidGradient.createShader(
+        Rect.fromCircle(center: Offset.zero, radius: 300),
+      ),
+    );
+    
+    // Prismatic void shimmer at the edges of reality
+    for (int i = 0; i < 8; i++) {
+      final angle = (i / 8) * 2 * pi + _wavePhase * 0.3;
+      final hue = ((i * 45) + _pulse * 20) % 360;
+      final shimmerColor = HSVColor.fromAHSV(0.15, hue, 1.0, 1.0).toColor();
       
-      for (double t = 0; t < 2 * pi; t += 0.2) {
-        final r = radius + 10 * sin(t * 3 + _wavePhase);
-        final angle = startAngle + t + _rotation * 0.2;
-        final x = cos(angle) * r;
-        final y = sin(angle) * r;
-        
+      final path = Path();
+      for (double t = 0; t < pi * 0.3; t += 0.05) {
+        final r = 250 + sin(t * 5 + _wavePhase) * 20;
+        final a = angle + t - pi * 0.15;
         if (t == 0) {
-          path.moveTo(x, y);
+          path.moveTo(cos(a) * r, sin(a) * r);
         } else {
-          path.lineTo(x, y);
+          path.lineTo(cos(a) * r, sin(a) * r);
         }
       }
-      path.close();
-      canvas.drawPath(path, paint);
-    }
-  }
-
-  void _drawOmniversalCore(Canvas canvas, double techLevel) {
-    final radius = 40.0 + 5 * sin(_pulse * 2);
-    
-    // Core glow
-    canvas.drawCircle(
-      Offset.zero,
-      radius + 20,
-      Paint()
-        ..color = const Color(0xFF00E5FF).withValues(alpha: 0.3)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
-    );
-    
-    // Solid core
-    canvas.drawCircle(
-      Offset.zero,
-      radius,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Colors.white, Color(0xFF6200EA), Colors.black],
-          stops: [0.2, 0.6, 1.0],
-        ).createShader(Rect.fromCircle(center: Offset.zero, radius: radius)),
-    );
-  }
-
-  void _drawBraneCollisions(Canvas canvas, double techLevel) {
-    final paint = Paint()
-      ..color = const Color(0xFFFF00FF).withValues(alpha: 0.4)
-      ..style = PaintingStyle.fill;
       
-    final count = (5 * techLevel).round();
-    final fixedRandom = Random(888);
-    
-    for (int i = 0; i < count; i++) {
-      final angle = fixedRandom.nextDouble() * 2 * pi + _rotation;
-      final dist = 60 + fixedRandom.nextDouble() * 40;
-      final x = cos(angle) * dist;
-      final y = sin(angle) * dist;
-      
-      canvas.drawCircle(
-        Offset(x, y),
-        8 + 4 * sin(_pulse + i),
-        paint,
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = shimmerColor
+          ..strokeWidth = 3
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
     }
   }
 
-  void _drawMultiverseBubbles(Canvas canvas, double techLevel) {
-    final bubblePaint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-      
-    final count = (10 * techLevel).round();
-    final fixedRandom = Random(999);
+  /// Void Tendrils - dark matter reaching from beyond existence
+  void _drawVoidTendrils(Canvas canvas, double techLevel) {
+    final fixedRandom = Random(555);
+    final tendrilCount = 12;
     
-    for (int i = 0; i < count; i++) {
-      final angle = fixedRandom.nextDouble() * 2 * pi - _rotation * 0.5;
-      final dist = 120 + fixedRandom.nextDouble() * 80;
+    for (int i = 0; i < tendrilCount; i++) {
+      final baseAngle = (i / tendrilCount) * 2 * pi + _rotation * 0.1;
+      final path = Path();
+      
+      // Tendrils emerge from the void edge
+      path.moveTo(cos(baseAngle) * 280, sin(baseAngle) * 280);
+      
+      // Organic, flowing tendril path
+      for (double t = 0; t < 1.0; t += 0.05) {
+        final progress = t;
+        final dist = 280 - progress * (180 + fixedRandom.nextDouble() * 40);
+        final wobble = sin(_wavePhase * 2 + t * 8 + i) * (20 * (1 - progress));
+        final angle = baseAngle + wobble * 0.02;
+        
+        path.lineTo(
+          cos(angle) * dist + wobble,
+          sin(angle) * dist,
+        );
+      }
+      
+      // Draw tendril with gradient opacity
+      final tendrilPaint = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            const Color(0xFF1A0030).withValues(alpha: 0.0),
+            const Color(0xFF3D0066).withValues(alpha: 0.4 * techLevel),
+            const Color(0xFF6600AA).withValues(alpha: 0.6 * techLevel),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: 280))
+        ..strokeWidth = 6 + sin(_pulse + i) * 2
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round;
+      
+      canvas.drawPath(path, tendrilPaint);
+      
+      // Glow effect
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = const Color(0xFF9900FF).withValues(alpha: 0.2 * techLevel)
+          ..strokeWidth = 12
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
+    }
+  }
+
+  /// Timeline Cascade - infinite parallel realities stacked
+  void _drawTimelineCascade(Canvas canvas, double techLevel) {
+    final layerCount = (15 * techLevel).round().clamp(3, 15);
+    
+    for (int i = 0; i < layerCount; i++) {
+      final offset = (i - layerCount / 2) * 8;
+      final alpha = (0.3 - (i.abs() / layerCount) * 0.25) * techLevel;
+      final hue = (i * 25 + _pulse * 30) % 360;
+      final color = HSVColor.fromAHSV(alpha.clamp(0.05, 0.3), hue, 0.8, 1.0).toColor();
+      
+      // Each timeline is a thin slice of reality
+      canvas.save();
+      canvas.translate(offset * 0.5, offset * 0.3);
+      
+      // Draw timeline ring
+      canvas.drawCircle(
+        Offset.zero,
+        60 + i * 3,
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+      
+      canvas.restore();
+    }
+  }
+
+  /// Reality Fractures - cracks in the fabric of existence
+  void _drawRealityFractures(Canvas canvas, double techLevel) {
+    final fixedRandom = Random(777);
+    final fractureCount = (8 * techLevel).round();
+    
+    for (int i = 0; i < fractureCount; i++) {
+      final startAngle = fixedRandom.nextDouble() * 2 * pi;
+      final startDist = 70 + fixedRandom.nextDouble() * 60;
+      final length = 40 + fixedRandom.nextDouble() * 80;
+      
+      final path = Path();
+      path.moveTo(
+        cos(startAngle) * startDist,
+        sin(startAngle) * startDist,
+      );
+      
+      // Jagged fracture line
+      double currentDist = startDist;
+      double currentAngle = startAngle;
+      for (int j = 0; j < 8; j++) {
+        currentDist += length / 8;
+        currentAngle += (fixedRandom.nextDouble() - 0.5) * 0.4;
+        path.lineTo(
+          cos(currentAngle) * currentDist + (fixedRandom.nextDouble() - 0.5) * 10,
+          sin(currentAngle) * currentDist + (fixedRandom.nextDouble() - 0.5) * 10,
+        );
+      }
+      
+      // Fracture glow - prismatic light bleeding through
+      final hue = (_pulse * 50 + i * 40) % 360;
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = HSVColor.fromAHSV(0.8, hue, 1.0, 1.0).toColor()
+          ..strokeWidth = 3 + sin(_pulse * 3 + i) * 1.5
+          ..style = PaintingStyle.stroke
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6),
+      );
+      
+      // Core fracture line - bright white
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.9)
+          ..strokeWidth = 1.5
+          ..style = PaintingStyle.stroke,
+      );
+    }
+  }
+
+  /// The Omniversal Throne - impossible geometry at the center of all existence
+  void _drawOmniversalThrone(Canvas canvas, double techLevel) {
+    // Outer event horizon - swirling void energy
+    for (int ring = 5; ring > 0; ring--) {
+      final ringRadius = 45.0 + ring * 12 + sin(_pulse * 1.5) * 3;
+      final hue = (_rotation * 30 + ring * 60) % 360;
+      
+      canvas.drawCircle(
+        Offset.zero,
+        ringRadius,
+        Paint()
+          ..color = HSVColor.fromAHSV(0.15 / ring, hue, 1.0, 1.0).toColor()
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 15.0 / ring),
+      );
+    }
+    
+    // Impossible geometry - nested rotating shapes
+    _drawImpossibleGeometry(canvas, techLevel);
+    
+    // Core singularity - pure transcendence
+    final coreRadius = 25.0 + sin(_pulse * 2) * 3;
+    
+    // Outer glow rings
+    canvas.drawCircle(
+      Offset.zero,
+      coreRadius + 15,
+      Paint()
+        ..color = const Color(0xFFE0B0FF).withValues(alpha: 0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 20),
+    );
+    
+    // Rainbow chromatic aberration effect
+    for (int i = 0; i < 3; i++) {
+      final offset = Offset(
+        cos(_rotation * 2 + i * 2.1) * 3,
+        sin(_rotation * 2 + i * 2.1) * 3,
+      );
+      final colors = [const Color(0xFFFF0080), const Color(0xFF00FF80), const Color(0xFF8000FF)];
+      
+      canvas.drawCircle(
+        offset,
+        coreRadius,
+        Paint()
+          ..color = colors[i].withValues(alpha: 0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+      );
+    }
+    
+    // Core - shifting between states of existence
+    final coreGradient = RadialGradient(
+      colors: [
+        Colors.white,
+        const Color(0xFFE0B0FF),
+        const Color(0xFF6600CC),
+        Colors.black,
+      ],
+      stops: [0.0, 0.3, 0.7, 1.0],
+    );
+    
+    canvas.drawCircle(
+      Offset.zero,
+      coreRadius,
+      Paint()..shader = coreGradient.createShader(
+        Rect.fromCircle(center: Offset.zero, radius: coreRadius),
+      ),
+    );
+    
+    // Inner eye - the consciousness of the multiverse
+    canvas.drawCircle(
+      Offset.zero,
+      8,
+      Paint()..color = Colors.black,
+    );
+    
+    // Pupil shimmer
+    canvas.drawCircle(
+      const Offset(-2, -2),
+      3,
+      Paint()..color = Colors.white.withValues(alpha: 0.8),
+    );
+  }
+
+  /// Impossible Geometry - Penrose-style impossible shapes
+  void _drawImpossibleGeometry(Canvas canvas, double techLevel) {
+    canvas.save();
+    canvas.rotate(_rotation * 0.3);
+    
+    // Rotating impossible triangle frames
+    for (int i = 0; i < 3; i++) {
+      canvas.save();
+      canvas.rotate(i * 2 * pi / 3 + _wavePhase * 0.5);
+      
+      final size = 55.0 + i * 8;
+      final path = Path();
+      
+      // Draw impossible triangle
+      path.moveTo(0, -size);
+      path.lineTo(size * 0.866, size * 0.5);
+      path.lineTo(-size * 0.866, size * 0.5);
+      path.close();
+      
+      final hue = (i * 120 + _pulse * 40) % 360;
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = HSVColor.fromAHSV(0.4 * techLevel, hue, 0.8, 1.0).toColor()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+      
+      canvas.restore();
+    }
+    
+    // Rotating squares creating depth illusion
+    for (int i = 0; i < 4; i++) {
+      canvas.save();
+      canvas.rotate(i * pi / 4 - _rotation * 0.2);
+      final squareSize = 40.0 + i * 5;
+      
+      canvas.drawRect(
+        Rect.fromCenter(center: Offset.zero, width: squareSize, height: squareSize),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.15 - i * 0.03)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
+      
+      canvas.restore();
+    }
+    
+    canvas.restore();
+  }
+
+  /// Dimensional Cascade - universes being created and destroyed
+  void _drawDimensionalCascade(Canvas canvas, double techLevel) {
+    final fixedRandom = Random(999);
+    final universeCount = (12 * techLevel).round();
+    
+    for (int i = 0; i < universeCount; i++) {
+      final angle = fixedRandom.nextDouble() * 2 * pi - _rotation * 0.3;
+      final dist = 130 + fixedRandom.nextDouble() * 70;
       final x = cos(angle) * dist;
       final y = sin(angle) * dist;
-      final r = 10 + fixedRandom.nextDouble() * 15;
+      final size = 8 + fixedRandom.nextDouble() * 12;
       
-      bubblePaint.color = HSLColor.fromAHSL(0.5, (i * 30.0) % 360, 1.0, 0.5).toColor();
-      canvas.drawCircle(Offset(x, y), r, bubblePaint);
+      // Birth/death cycle based on time
+      final lifecycle = ((_pulse + i * 0.5) % 4) / 4; // 0 to 1 cycle
+      final alpha = sin(lifecycle * pi) * 0.7; // Fade in and out
+      
+      // Universe bubble
+      final hue = (i * 30 + _pulse * 20) % 360;
+      final universeColor = HSVColor.fromAHSV(alpha.clamp(0.1, 0.7), hue, 0.9, 1.0).toColor();
+      
+      // Outer glow
+      canvas.drawCircle(
+        Offset(x, y),
+        size + 5,
+        Paint()
+          ..color = universeColor.withValues(alpha: alpha * 0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
+      
+      // Universe membrane
+      canvas.drawCircle(
+        Offset(x, y),
+        size,
+        Paint()
+          ..color = universeColor.withValues(alpha: alpha * 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+      
+      // Inner galaxy spiral (tiny detail)
+      if (size > 12 && alpha > 0.3) {
+        canvas.save();
+        canvas.translate(x, y);
+        canvas.rotate(_rotation + i);
+        
+        final spiralPath = Path();
+        for (double t = 0; t < 4 * pi; t += 0.3) {
+          final r = t * size / (6 * pi);
+          final sx = cos(t) * r;
+          final sy = sin(t) * r * 0.4; // Tilted galaxy
+          if (t == 0) {
+            spiralPath.moveTo(sx, sy);
+          } else {
+            spiralPath.lineTo(sx, sy);
+          }
+        }
+        
+        canvas.drawPath(
+          spiralPath,
+          Paint()
+            ..color = Colors.white.withValues(alpha: alpha * 0.4)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 0.5,
+        );
+        
+        canvas.restore();
+      }
+    }
+  }
+
+  /// Cosmic Watchers - ancient entities at the edge of perception
+  void _drawCosmicWatchers(Canvas canvas, double techLevel) {
+    final watcherCount = 6;
+    
+    for (int i = 0; i < watcherCount; i++) {
+      final angle = (i / watcherCount) * 2 * pi + _wavePhase * 0.1;
+      final dist = 200 + sin(_pulse * 0.5 + i * 2) * 15;
+      final x = cos(angle) * dist;
+      final y = sin(angle) * dist;
+      
+      // Watcher body - ethereal presence
+      final watcherPath = Path();
+      watcherPath.moveTo(x, y - 25);
+      watcherPath.quadraticBezierTo(x + 15, y, x, y + 25);
+      watcherPath.quadraticBezierTo(x - 15, y, x, y - 25);
+      
+      canvas.drawPath(
+        watcherPath,
+        Paint()
+          ..color = const Color(0xFF3D0066).withValues(alpha: 0.3 * techLevel)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
+      
+      // Watcher eye
+      final eyeGlow = 0.5 + sin(_pulse * 3 + i) * 0.3;
+      canvas.drawCircle(
+        Offset(x, y - 5),
+        4 + sin(_pulse * 2 + i) * 1,
+        Paint()
+          ..color = const Color(0xFFFF00FF).withValues(alpha: eyeGlow * techLevel)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+      
+      canvas.drawCircle(
+        Offset(x, y - 5),
+        2,
+        Paint()..color = Colors.white.withValues(alpha: eyeGlow * techLevel),
+      );
+    }
+  }
+
+  /// Logic Rewrite Effect - reality being overwritten with new rules
+  void _drawLogicRewriteEffect(Canvas canvas, double techLevel) {
+    // Glitch lines - reality code being rewritten
+    final fixedRandom = Random(123);
+    final glitchCount = (20 * techLevel).round();
+    
+    for (int i = 0; i < glitchCount; i++) {
+      final y = (fixedRandom.nextDouble() - 0.5) * 400;
+      final x = (fixedRandom.nextDouble() - 0.5) * 400;
+      final width = 20 + fixedRandom.nextDouble() * 60;
+      final height = 2 + fixedRandom.nextDouble() * 4;
+      
+      // Glitch appears and disappears
+      final glitchPhase = (_pulse * 5 + i * 0.7) % 2;
+      if (glitchPhase < 0.3) {
+        final hue = fixedRandom.nextDouble() * 360;
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, width, height),
+          Paint()
+            ..color = HSVColor.fromAHSV(0.8, hue, 1.0, 1.0).toColor()
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+        );
+      }
+    }
+    
+    // Floating symbols - mathematical constants being rewritten
+    final symbols = ['∞', 'Ω', 'π', 'Σ', 'Δ', '∀', '∃', 'ℵ'];
+    for (int i = 0; i < 5; i++) {
+      final symbolAngle = (i / 5) * 2 * pi + _rotation * 0.5;
+      final symbolDist = 90 + sin(_pulse + i) * 10;
+      final sx = cos(symbolAngle) * symbolDist;
+      final sy = sin(symbolAngle) * symbolDist;
+      
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: symbols[i % symbols.length],
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white.withValues(alpha: 0.4 * techLevel),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      
+      canvas.save();
+      canvas.translate(sx, sy);
+      canvas.rotate(_rotation + i);
+      textPainter.paint(canvas, Offset(-textPainter.width / 2, -textPainter.height / 2));
+      canvas.restore();
     }
   }
   

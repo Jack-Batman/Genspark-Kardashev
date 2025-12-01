@@ -119,10 +119,10 @@ const Map<Era, EraConfig> eraConfigs = {
     description: 'Transcend reality. Harvest energy from infinite timelines and manipulate the fundamental logic of existence.',
     minKardashev: 4.0,
     maxKardashev: 5.0,
-    primaryColor: Color(0xFF6200EA), // Deep Purple
-    secondaryColor: Color(0xFF00E5FF), // Neon Cyan
-    accentColor: Color(0xFF00E5FF), // Cyan Accent
-    backgroundColor: Color(0xFF050010), // Void
+    primaryColor: Color(0xFFE0B0FF), // Mauve/Prismatic
+    secondaryColor: Color(0xFF00FFAB), // Void Green
+    accentColor: Color(0xFFFFFFFF), // Pure White (Transcendence)
+    backgroundColor: Color(0xFF000000), // True Void Black
     centralObject: 'multiverse',
     prestigeMultiplier: 1000.0,
     darkMatterMultiplier: 1000.0,

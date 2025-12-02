@@ -1761,7 +1761,7 @@ class GameProvider extends ChangeNotifier {
   }
   
   /// Calculate Dark Energy reward based on progress
-  /// DRASTICALLY REDUCED - Each prestige should only allow ~10-20% faster progress
+  /// BALANCED: Early game gets meaningful rewards, late game has diminishing returns
   double calculateDarkEnergyReward() {
     // Base calculation on total energy earned this run
     final currentRunEnergy = _state.totalEnergyEarned;
@@ -1769,23 +1769,46 @@ class GameProvider extends ChangeNotifier {
     // Edge case: No energy earned
     if (currentRunEnergy <= 0) return 0;
     
-    // HEAVILY NERFED: Use log10 for extreme diminishing returns
-    // This ensures even massive energy amounts give small Dark Energy rewards
-    // Example: 1e15 energy = log10(1e15/1e9) = log10(1e6) = 6 * scaleFactor
-    final logEnergy = currentRunEnergy > 1e9 ? log(currentRunEnergy / 1e9) / ln10 : 0.0;
+    // ERA-BASED SCALING with lower thresholds for early game
+    // Era I (K < 1.0): Energy ranges from ~100 to ~1M, threshold at 1000
+    // Era II (K 1-2): Energy ranges from ~1M to ~1B, threshold at 1M
+    // Era III (K 2-3): Energy ~1B to 1T, threshold at 1B
+    // Era IV (K 3-4): Energy ~1T to 1Q, threshold at 1T
+    // Era V (K 4+): Energy 1Q+, threshold at 1Q
     
-    // Very small scale factors - each era only slightly increases rewards
-    final scaleFactor = _state.kardashevLevel < 1.0 ? 0.5 :   // Era I: 0.5x
-                       _state.kardashevLevel < 2.0 ? 1.0 :    // Era II: 1x
-                       _state.kardashevLevel < 3.0 ? 1.5 :    // Era III: 1.5x
-                       _state.kardashevLevel < 4.0 ? 2.0 :    // Era IV: 2x
-                       2.5;                                    // Era V: 2.5x
+    double logEnergy;
+    double scaleFactor;
     
-    // Base reward is very small: typically 1-20 Dark Energy per prestige
+    if (_state.kardashevLevel < 1.0) {
+      // Era I: Use log of energy/1000, gives ~3-10 DE for typical Era I progress
+      logEnergy = currentRunEnergy > 1000 ? log(currentRunEnergy / 1000) / ln10 : 0.0;
+      scaleFactor = 2.0; // Generous early game
+    } else if (_state.kardashevLevel < 2.0) {
+      // Era II: Use log of energy/1M
+      logEnergy = currentRunEnergy > 1e6 ? log(currentRunEnergy / 1e6) / ln10 : 0.0;
+      scaleFactor = 1.5;
+    } else if (_state.kardashevLevel < 3.0) {
+      // Era III: Use log of energy/1B
+      logEnergy = currentRunEnergy > 1e9 ? log(currentRunEnergy / 1e9) / ln10 : 0.0;
+      scaleFactor = 1.2;
+    } else if (_state.kardashevLevel < 4.0) {
+      // Era IV: Use log of energy/1T
+      logEnergy = currentRunEnergy > 1e12 ? log(currentRunEnergy / 1e12) / ln10 : 0.0;
+      scaleFactor = 1.0;
+    } else {
+      // Era V: Use log of energy/1Q, heavily diminished
+      logEnergy = currentRunEnergy > 1e15 ? log(currentRunEnergy / 1e15) / ln10 : 0.0;
+      scaleFactor = 0.8;
+    }
+    
+    // Base reward from logarithmic calculation
     final reward = logEnergy * scaleFactor;
     
-    // Minimum reward is tiny - just 0.5 per 0.1 Kardashev level
-    final minReward = _state.kardashevLevel * 0.5;
+    // Minimum reward based on Kardashev level - ensures early game feels rewarding
+    // K0.885 should get at least ~5 Dark Energy
+    final minReward = _state.kardashevLevel < 1.0 
+        ? 3.0 + (_state.kardashevLevel * 5.0)  // Era I: 3-8 DE minimum
+        : 5.0 + (_state.kardashevLevel * 2.0); // Era II+: smaller minimum scaling
     
     // Guard against NaN/Infinity
     final finalReward = max(reward, minReward);
@@ -1795,25 +1818,28 @@ class GameProvider extends ChangeNotifier {
   }
   
   /// Calculate production bonus from Dark Energy
-  /// DRASTICALLY REDUCED - Each Dark Energy gives only +1% bonus (was +10%)
-  /// With logarithmic scaling for further diminishing returns
+  /// BALANCED: Early game gets good returns, late game has diminishing returns
   double calculateProductionBonusFromDarkEnergy(double darkEnergy) {
     if (darkEnergy <= 0) return 0;
     
-    // Use square root for diminishing returns on large amounts
-    // First 100 DE: ~10% per DE (linear-ish)
-    // 100-1000 DE: ~3% per DE 
-    // 1000+ DE: ~1% per DE (heavily diminished)
+    // Tiered scaling with meaningful early game bonuses
+    // First 50 DE: 10% each = up to 500% bonus (good early game feel)
+    // 50-200 DE: 5% each = up to 1250% bonus
+    // 200-500 DE: 2% each = up to 1850% bonus
+    // 500+ DE: 0.5% each (heavily diminished for late game)
     
-    if (darkEnergy <= 100) {
-      // First 100 Dark Energy: 1% each = up to 100% bonus
-      return darkEnergy * 0.01;
-    } else if (darkEnergy <= 1000) {
-      // 100-1000: 100% base + 0.5% each additional = up to 550% bonus
-      return 1.0 + (darkEnergy - 100) * 0.005;
+    if (darkEnergy <= 50) {
+      // First 50 Dark Energy: 10% each = up to 500% bonus
+      return darkEnergy * 0.10;
+    } else if (darkEnergy <= 200) {
+      // 50-200: 500% base + 5% each additional = up to 1250% bonus
+      return 5.0 + (darkEnergy - 50) * 0.05;
+    } else if (darkEnergy <= 500) {
+      // 200-500: 1250% base + 2% each additional = up to 1850% bonus
+      return 12.5 + (darkEnergy - 200) * 0.02;
     } else {
-      // 1000+: 550% base + 0.1% each additional (heavily diminished)
-      return 5.5 + (darkEnergy - 1000) * 0.001;
+      // 500+: 1850% base + 0.5% each additional (heavily diminished)
+      return 18.5 + (darkEnergy - 500) * 0.005;
     }
   }
   

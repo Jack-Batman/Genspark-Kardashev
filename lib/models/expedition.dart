@@ -256,8 +256,8 @@ const List<Expedition> availableExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 8,
-        description: '+8 Dark Matter',
+        amount: 2,
+        description: '+2 Dark Matter',
       ),
     ],
     successRateBase: 0.98,
@@ -279,8 +279,8 @@ const List<Expedition> availableExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 15,
-        description: '+15 Dark Matter',
+        amount: 3,
+        description: '+3 Dark Matter',
       ),
     ],
     successRateBase: 0.95,
@@ -304,8 +304,8 @@ const List<Expedition> availableExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 45,
-        description: '+45 Dark Matter',
+        amount: 6,
+        description: '+6 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -334,8 +334,8 @@ const List<Expedition> availableExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 65,
-        description: '+65 Dark Matter',
+        amount: 8,
+        description: '+8 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -366,8 +366,8 @@ const List<Expedition> availableExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 120,
-        description: '+120 Dark Matter',
+        amount: 15,
+        description: '+15 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -392,8 +392,8 @@ const List<Expedition> availableExpeditions = [
     baseRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 200,
-        description: '+200 Dark Matter',
+        amount: 20,
+        description: '+20 Dark Matter',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.energy,
@@ -424,8 +424,8 @@ const List<Expedition> availableExpeditions = [
     baseRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 400,
-        description: '+400 Dark Matter',
+        amount: 35,
+        description: '+35 Dark Matter',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.energy,
@@ -460,8 +460,8 @@ const List<Expedition> availableExpeditions = [
     baseRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 1000,
-        description: '+1K Dark Matter',
+        amount: 50,
+        description: '+50 Dark Matter',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.energy,
@@ -528,8 +528,8 @@ const List<Expedition> eraIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 20,
-        description: '+20 Dark Matter',
+        amount: 4,
+        description: '+4 Dark Matter',
       ),
     ],
     successRateBase: 0.90,
@@ -553,8 +553,8 @@ const List<Expedition> eraIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 50,
-        description: '+50 Dark Matter',
+        amount: 8,
+        description: '+8 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -584,8 +584,8 @@ const List<Expedition> eraIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 75,
-        description: '+75 Dark Matter',
+        amount: 10,
+        description: '+10 Dark Matter',
       ),
     ],
     successRateBase: 0.70,
@@ -609,8 +609,8 @@ const List<Expedition> eraIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 150,
-        description: '+150 Dark Matter',
+        amount: 18,
+        description: '+18 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -642,8 +642,8 @@ const List<Expedition> eraIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 500,
-        description: '+500 Dark Matter',
+        amount: 40,
+        description: '+40 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -700,8 +700,8 @@ const List<Expedition> eraIIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 50,
-        description: '+50 Dark Matter',
+        amount: 5,
+        description: '+5 Dark Matter',
       ),
     ],
     successRateBase: 0.90,
@@ -725,8 +725,8 @@ const List<Expedition> eraIIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 200,
-        description: '+200 Dark Matter',
+        amount: 12,
+        description: '+12 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -751,8 +751,8 @@ const List<Expedition> eraIIIExpeditions = [
     baseRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 350,
-        description: '+350 Dark Matter',
+        amount: 15,
+        description: '+15 Dark Matter',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.energy,
@@ -782,8 +782,8 @@ const List<Expedition> eraIIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 400,
-        description: '+400 Dark Matter',
+        amount: 22,
+        description: '+22 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -816,8 +816,8 @@ const List<Expedition> eraIIIExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 1000,
-        description: '+1000 Dark Matter',
+        amount: 55,
+        description: '+55 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -879,8 +879,8 @@ const List<Expedition> eraIVExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 150,
-        description: '+150 Dark Matter',
+        amount: 6,
+        description: '+6 Dark Matter',
       ),
     ],
     successRateBase: 0.90,
@@ -904,8 +904,8 @@ const List<Expedition> eraIVExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 500,
-        description: '+500 Dark Matter',
+        amount: 15,
+        description: '+15 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -935,8 +935,8 @@ const List<Expedition> eraIVExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 750,
-        description: '+750 Dark Matter',
+        amount: 18,
+        description: '+18 Dark Matter',
       ),
     ],
     successRateBase: 0.60,
@@ -961,8 +961,8 @@ const List<Expedition> eraIVExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 1500,
-        description: '+1500 Dark Matter',
+        amount: 28,
+        description: '+28 Dark Matter',
       ),
     ],
     bonusRewards: [
@@ -995,8 +995,8 @@ const List<Expedition> eraIVExpeditions = [
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 5000,
-        description: '+5000 Dark Matter',
+        amount: 65,
+        description: '+65 Dark Matter',
       ),
     ],
     bonusRewards: [

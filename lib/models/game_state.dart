@@ -192,6 +192,10 @@ class GameState extends HiveObject {
   @HiveField(56)
   double darkEnergy;
   
+  // Regular expeditions - persisted so they continue across app restarts and prestige
+  @HiveField(57)
+  List<Map<String, dynamic>> activeExpeditions;
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -250,7 +254,9 @@ class GameState extends HiveObject {
     this.activeParticles,
     List<String>? ownedCosmetics,
     this.lastMonthlyDMClaimed,
+    List<Map<String, dynamic>>? activeExpeditions,
   })  : generators = generators ?? {},
+        activeExpeditions = activeExpeditions ?? [],
         ownedArtifactIds = ownedArtifactIds ?? [],
         artifactAcquiredAt = artifactAcquiredAt ?? {},
         artifactSources = artifactSources ?? {},
@@ -587,6 +593,7 @@ class GameState extends HiveObject {
     List<String>? ownedCosmetics,
     DateTime? lastMonthlyDMClaimed,
     double? darkEnergy,
+    List<Map<String, dynamic>>? activeExpeditions,
   }) {
     return GameState(
       energy: energy ?? this.energy,
@@ -646,6 +653,7 @@ class GameState extends HiveObject {
       ownedCosmetics: ownedCosmetics ?? List.from(this.ownedCosmetics),
       lastMonthlyDMClaimed: lastMonthlyDMClaimed ?? this.lastMonthlyDMClaimed,
       darkEnergy: darkEnergy ?? this.darkEnergy,
+      activeExpeditions: activeExpeditions ?? List.from(this.activeExpeditions.map((e) => Map<String, dynamic>.from(e))),
     );
   }
   

@@ -19,6 +19,7 @@ class GameStateAdapter extends TypeAdapter<GameState> {
     return GameState(
       energy: fields[0] as double,
       darkMatter: fields[1] as double,
+      darkEnergy: fields[56] as double,
       kardashevLevel: fields[2] as double,
       currentEra: fields[3] as int,
       generators: (fields[4] as Map?)?.cast<String, int>(),
@@ -73,14 +74,16 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       activeParticles: fields[53] as String?,
       ownedCosmetics: (fields[54] as List?)?.cast<String>(),
       lastMonthlyDMClaimed: fields[55] as DateTime?,
-      darkEnergy: fields[56] == null ? 0.0 : fields[56] as double,
+      activeExpeditions: (fields[57] as List?)
+          ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
+          ?.toList(),
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(57)
+      ..writeByte(58)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -194,7 +197,9 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(55)
       ..write(obj.lastMonthlyDMClaimed)
       ..writeByte(56)
-      ..write(obj.darkEnergy);
+      ..write(obj.darkEnergy)
+      ..writeByte(57)
+      ..write(obj.activeExpeditions);
   }
 
   @override

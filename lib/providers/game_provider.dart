@@ -65,8 +65,8 @@ class GameProvider extends ChangeNotifier {
   DailyReward? _pendingDailyReward;
   bool _dailyRewardClaimed = false;
   
-  // Expedition state
-  final List<ActiveExpedition> _activeExpeditions = [];
+  // Expedition state - synced with GameState for persistence
+  List<ActiveExpedition> _activeExpeditions = [];
   
   // Production boost state
   double _productionBoostMultiplier = 1.0;
@@ -234,6 +234,9 @@ class GameProvider extends ChangeNotifier {
             
             // Check for offline research progress
             _checkOfflineResearch();
+            
+            // Load active expeditions from persisted state
+            _loadExpeditionsFromState();
           }
         } catch (e) {
           // If loading fails due to schema mismatch, clear and start fresh
@@ -959,6 +962,20 @@ class GameProvider extends ChangeNotifier {
   // EXPEDITION SYSTEM
   // ═══════════════════════════════════════════════════════════════
   
+  /// Load expeditions from persisted GameState
+  void _loadExpeditionsFromState() {
+    _activeExpeditions = _state.activeExpeditions
+        .map((map) => ActiveExpedition.fromMap(map))
+        .toList();
+  }
+  
+  /// Sync expeditions to GameState for persistence
+  void _syncExpeditionsToState() {
+    _state.activeExpeditions = _activeExpeditions
+        .map((e) => e.toMap())
+        .toList();
+  }
+  
   /// Start an expedition with assigned architects
   bool startExpedition(String expeditionId, List<String> architectIds) {
     final expedition = getExpeditionById(expeditionId);
@@ -995,6 +1012,7 @@ class GameProvider extends ChangeNotifier {
     );
     
     _activeExpeditions.add(active);
+    _syncExpeditionsToState(); // Persist to GameState
     _saveGame();
     notifyListeners();
     return true;
@@ -1103,6 +1121,7 @@ class GameProvider extends ChangeNotifier {
     
     // Remove expedition
     _activeExpeditions.removeAt(activeIndex);
+    _syncExpeditionsToState(); // Persist to GameState
     
     // Track challenge progress
     _updateChallengeProgress(ChallengeObjective.completeExpedition, 1);
@@ -1138,6 +1157,7 @@ class GameProvider extends ChangeNotifier {
   /// Cancel an active expedition (forfeits all progress)
   void cancelExpedition(String expeditionId) {
     _activeExpeditions.removeWhere((a) => a.expeditionId == expeditionId);
+    _syncExpeditionsToState(); // Persist to GameState
     _saveGame();
     notifyListeners();
   }
@@ -1825,6 +1845,18 @@ class GameProvider extends ChangeNotifier {
     final preservedLoginStreak = _state.loginStreak;
     final preservedTotalLoginDays = _state.totalLoginDays;
     
+    // CRITICAL: Preserve active expeditions - they should continue in background during prestige
+    // Regular expeditions are now persisted in GameState.activeExpeditions
+    final preservedActiveExpeditions = List<Map<String, dynamic>>.from(
+        _state.activeExpeditions.map((e) => Map<String, dynamic>.from(e)));
+    
+    // Preserve legendary expedition data - these should continue running during prestige
+    final preservedActiveLegendary = _state.activeLegendaryExpedition != null 
+        ? Map<String, dynamic>.from(_state.activeLegendaryExpedition!) 
+        : null;
+    final preservedCompletedLegendary = List<String>.from(_state.completedLegendaryExpeditions);
+    final preservedLegendaryCooldowns = Map<String, int>.from(_state.legendaryExpeditionCooldowns);
+    
     // Determine prestige tier based on total prestiges (for display/achievements)
     final newPrestigeTier = min(_state.prestigeTier + 1, prestigeTiers.length);
     
@@ -1850,6 +1882,11 @@ class GameProvider extends ChangeNotifier {
       lastLoginDate: preservedLastLoginDate,
       loginStreak: preservedLoginStreak,
       totalLoginDays: preservedTotalLoginDays,
+      // CRITICAL: Preserve expedition data - missions continue in background during prestige
+      activeExpeditions: preservedActiveExpeditions, // Regular expeditions
+      activeLegendaryExpedition: preservedActiveLegendary,
+      completedLegendaryExpeditions: preservedCompletedLegendary,
+      legendaryExpeditionCooldowns: preservedLegendaryCooldowns,
     );
     
     // Clear any pending achievement notifications to prevent stale popups

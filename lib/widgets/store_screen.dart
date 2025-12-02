@@ -3,8 +3,10 @@ import '../core/constants.dart';
 import '../services/ad_service.dart';
 import '../services/iap_service.dart';
 import '../services/membership_service.dart';
+import '../services/daily_deals_service.dart';
 import '../providers/game_provider.dart';
 import 'glass_container.dart';
+import 'daily_deals_widget.dart';
 
 /// Main Store Screen with all monetization options
 class StoreScreen extends StatefulWidget {
@@ -24,6 +26,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   final IAPService _iapService = IAPService();
   final MembershipService _membershipService = MembershipService();
   final AdService _adService = AdService();
+  final DailyDealsService _dealsService = DailyDealsService();
   
   bool _isPurchasing = false;
   
@@ -31,6 +34,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
+    _dealsService.initialize();
   }
   
   @override
@@ -194,6 +198,8 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   }
   
   Widget _buildDarkMatterTab() {
+    final activeDeals = _dealsService.getAllActiveDeals();
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -203,6 +209,15 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           _buildBalanceCard(),
           
           const SizedBox(height: 16),
+          
+          // Daily Deals Section (if any active)
+          if (activeDeals.isNotEmpty) ...[
+            DailyDealsWidget(
+              gameProvider: widget.gameProvider,
+              onPurchase: (deal) => _purchaseDeal(deal),
+            ),
+            const SizedBox(height: 16),
+          ],
           
           // Free Daily Dark Matter (Ad)
           _buildFreeDarkMatterCard(),
@@ -230,6 +245,46 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         ],
       ),
     );
+  }
+  
+  Future<void> _purchaseDeal(DailyDeal deal) async {
+    if (_isPurchasing) return;
+    
+    setState(() => _isPurchasing = true);
+    
+    try {
+      // Simulate purchase (in production, use actual IAP)
+      await Future.delayed(const Duration(milliseconds: 800));
+      
+      // Apply rewards
+      if (deal.rewards.containsKey('darkMatter')) {
+        widget.gameProvider.addDarkMatter(
+          (deal.rewards['darkMatter'] as num).toDouble()
+        );
+      }
+      
+      if (deal.rewards.containsKey('timeWarps')) {
+        final timeWarps = (deal.rewards['timeWarps'] as num).toInt();
+        for (int i = 0; i < timeWarps; i++) {
+          widget.gameProvider.activateTimeWarp(hours: 1);
+        }
+      }
+      
+      // Mark deal as purchased
+      _dealsService.markDealPurchased(deal.id);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Successfully purchased ${deal.title}!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        setState(() {});
+      }
+    } finally {
+      setState(() => _isPurchasing = false);
+    }
   }
   
   Widget _buildMembershipTab() {

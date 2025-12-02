@@ -65,6 +65,23 @@ class _GeneratorCardV2State extends State<GeneratorCardV2> {
     return max(1, canBuy);
   }
 
+  int _getUpgradeCount() {
+    switch (_selectedAmount) {
+      case BuyAmount.x1:
+        return 1;
+      case BuyAmount.x10:
+        return 10;
+      case BuyAmount.x100:
+        return 100;
+      case BuyAmount.max:
+        return max(1, widget.gameProvider.calculateMaxUpgrades(widget.genData));
+    }
+  }
+
+  double _calculateBulkUpgradeCost(int amount) {
+    return widget.gameProvider.calculateBulkUpgradeCost(widget.genData, amount);
+  }
+
   double _calculateBulkCost(int amount) {
     final state = widget.gameProvider.state;
     int currentCount = state.getGeneratorCount(widget.genData.id);
@@ -85,9 +102,10 @@ class _GeneratorCardV2State extends State<GeneratorCardV2> {
     final level = widget.gameProvider.state.getGeneratorLevel(widget.genData.id);
     final buyCount = _getBuyCount();
     final bulkCost = _calculateBulkCost(buyCount);
-    final upgradeCost = widget.gameProvider.state.getUpgradeCost(widget.genData);
+    final upgradeCount = _getUpgradeCount();
+    final bulkUpgradeCost = _calculateBulkUpgradeCost(upgradeCount);
     final canBuy = widget.gameProvider.state.energy >= bulkCost;
-    final canUpgrade = count > 0 && widget.gameProvider.state.energy >= upgradeCost;
+    final canUpgrade = count > 0 && widget.gameProvider.state.energy >= bulkUpgradeCost;
     final isUnlocked = widget.gameProvider.state.isGeneratorUnlocked(widget.genData);
     
     // Calculate production for this generator
@@ -195,8 +213,6 @@ class _GeneratorCardV2State extends State<GeneratorCardV2> {
                       fontSize: 10,
                       color: Colors.white.withValues(alpha: 0.5),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -281,15 +297,19 @@ class _GeneratorCardV2State extends State<GeneratorCardV2> {
                 ),
                 if (count > 0) ...[
                   const SizedBox(height: 6),
-                  // Upgrade button
+                  // Upgrade button with bulk support
                   _ActionButton(
-                    text: GameProvider.formatNumber(upgradeCost),
+                    text: '${upgradeCount > 1 ? "+$upgradeCount Lv " : ""}${GameProvider.formatNumber(bulkUpgradeCost)}',
                     icon: Icons.arrow_upward,
                     enabled: canUpgrade,
                     color: Colors.blue,
                     isSmall: true,
                     onPressed: canUpgrade ? () {
-                      widget.onUpgrade();
+                      if (upgradeCount == 1) {
+                        widget.onUpgrade();
+                      } else {
+                        widget.gameProvider.upgradeGeneratorBulkV2(widget.genData, upgradeCount);
+                      }
                       AudioService.playPurchase();
                     } : null,
                   ),

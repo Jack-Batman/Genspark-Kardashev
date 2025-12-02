@@ -23,6 +23,7 @@ enum NotificationType {
   // Artifact and legendary expedition additions
   artifactFound,
   legendaryStageComplete,
+  legendaryStageReady,
 }
 
 /// In-app notification banner model
@@ -432,6 +433,19 @@ class NotificationBannerController extends ChangeNotifier {
       color: isBossStage ? Colors.red : Colors.purple,
       onTap: onTap,
       duration: const Duration(seconds: 4),
+    ));
+  }
+  
+  void showLegendaryStageReady(String expeditionName, String stageName, bool isBossStage, VoidCallback onTap) {
+    show(NotificationBannerData(
+      id: 'legendary_stage_ready',  // Fixed ID to prevent duplicates
+      type: NotificationType.legendaryStageReady,
+      title: isBossStage ? '⚔️ BOSS ENCOUNTER READY!' : '🎯 STAGE READY!',
+      message: '$expeditionName: $stageName - Tap to continue!',
+      icon: isBossStage ? Icons.shield : Icons.play_circle,
+      color: isBossStage ? Colors.red : Colors.purple,
+      onTap: onTap,
+      duration: const Duration(seconds: 10),  // Longer duration for important notification
     ));
   }
 }

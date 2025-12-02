@@ -25,6 +25,7 @@ import '../widgets/notification_banner.dart';
 import '../widgets/store_screen.dart';
 import '../widgets/timed_ad_reward_button.dart';
 import '../widgets/flying_bonus_widget.dart';
+import '../widgets/legendary_stage_dialog.dart';
 
 /// Main Game Screen - Multi-Era Support
 class GameScreen extends StatefulWidget {
@@ -148,9 +149,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   ),
 
                 // Era Ascension Available Banner
+                // Adjust position based on whether we have 2 rows of era tabs (4+ eras unlocked)
                 if (_isEraTransitionAvailable(gameProvider))
                   Positioned(
-                    top: gameProvider.state.unlockedEras.length > 1 ? 180 : 130,
+                    top: gameProvider.state.unlockedEras.length > 1 
+                        ? (gameProvider.state.unlockedEras.any((e) => e > 2) ? 220 : 175) // 2 rows vs 1 row
+                        : 130,
                     left: 16,
                     right: 16,
                     child: _buildEraAscensionBanner(gameProvider),
@@ -285,6 +289,24 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       totalLoginDays: gameProvider.state.totalLoginDays,
                       onClaim: () => gameProvider.claimDailyReward(),
                       onDismiss: () => gameProvider.dismissDailyReward(),
+                    ),
+                  ),
+
+                // Legendary Stage Ready Dialog
+                if (gameProvider.showLegendaryStageDialog && 
+                    gameProvider.activeLegendaryExpedition != null &&
+                    gameProvider.activeLegendaryExpedition!.canResolveCurrentStage)
+                  Positioned.fill(
+                    child: LegendaryStageReadyDialog(
+                      gameProvider: gameProvider,
+                      onDismiss: () => gameProvider.dismissLegendaryStageDialog(),
+                      onResolve: () {
+                        gameProvider.dismissLegendaryStageDialog();
+                        final result = gameProvider.resolveLegendaryStage();
+                        if (result != null) {
+                          _showLegendaryStageResultDialog(context, gameProvider, result);
+                        }
+                      },
                     ),
                   ),
 
@@ -514,6 +536,150 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
     );
   }
   
+  void _showLegendaryStageResultDialog(BuildContext context, GameProvider gameProvider, dynamic result) {
+    final eraConfig = gameProvider.state.eraConfig;
+    
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => AlertDialog(
+        backgroundColor: eraConfig.backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: result.success 
+                ? Colors.green.withValues(alpha: 0.5)
+                : Colors.red.withValues(alpha: 0.5),
+          ),
+        ),
+        title: Row(
+          children: [
+            Icon(
+              result.success ? Icons.check_circle : Icons.cancel,
+              color: result.success ? Colors.green : Colors.red,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                result.success ? 'STAGE COMPLETE!' : 'STAGE FAILED',
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 14,
+                  color: result.success ? Colors.green : Colors.red,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                result.message,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withValues(alpha: 0.8),
+                ),
+              ),
+              if (result.rewards.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Text(
+                  'REWARDS:',
+                  style: TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 10,
+                    color: Colors.amber,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...result.rewards.map((reward) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    children: [
+                      Icon(reward.icon, size: 14, color: reward.color),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          reward.description,
+                          style: TextStyle(fontSize: 11, color: reward.color),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+              ],
+              if (result.expeditionCompleted) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.green.withValues(alpha: 0.2),
+                  ),
+                  child: Row(
+                    children: [
+                      const Text('', style: TextStyle(fontSize: 20)),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Legendary Expedition Complete!',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (!result.success && result.expeditionFailed) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    color: Colors.red.withValues(alpha: 0.2),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Expedition failed. Partial rewards collected.',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: result.success ? Colors.green : Colors.grey,
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              result.expeditionCompleted || result.expeditionFailed 
+                  ? 'COLLECT' 
+                  : 'CONTINUE',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
   void _showSettingsModal(BuildContext context, GameProvider gameProvider) {
     AudioService.playClick();
     showModalBottomSheet(
@@ -565,60 +731,91 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEraSelector(GameProvider gameProvider) {
+    final unlockedEras = gameProvider.state.unlockedEras;
+    
+    // Split eras into two rows: first 3 (Planetary, Stellar, Galactic) and last 2 (Universal, Multiversal)
+    final firstRowEras = unlockedEras.where((e) => e <= 2).toList(); // Era indices 0, 1, 2
+    final secondRowEras = unlockedEras.where((e) => e > 2).toList();  // Era indices 3, 4
+    
     return Container(
-      height: 40,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: gameProvider.state.unlockedEras.length,
-        itemBuilder: (context, index) {
-          final eraIndex = gameProvider.state.unlockedEras[index];
-          final era = Era.values[eraIndex];
-          final config = eraConfigs[era]!;
-          final isSelected = gameProvider.state.currentEra == eraIndex;
-          
-          return GestureDetector(
-            onTap: () => gameProvider.switchEra(era),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                color: isSelected 
-                    ? config.primaryColor.withValues(alpha: 0.3)
-                    : Colors.black.withValues(alpha: 0.3),
-                border: Border.all(
-                  color: isSelected 
-                      ? config.primaryColor
-                      : Colors.white.withValues(alpha: 0.2),
-                  width: isSelected ? 2 : 1,
-                ),
-              ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // First row: Planetary, Stellar, Galactic
+          if (firstRowEras.isNotEmpty)
+            SizedBox(
+              height: 36,
               child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _getEraIcon(era),
-                    size: 16,
-                    color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    config.subtitle,
-                    style: TextStyle(
-                      fontFamily: 'Orbitron',
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                      color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: firstRowEras.map((eraIndex) => 
+                  _buildEraTab(gameProvider, eraIndex)
+                ).toList(),
               ),
             ),
-          );
-        },
+          
+          // Second row: Universal, Multiversal (if unlocked)
+          if (secondRowEras.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 36,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: secondRowEras.map((eraIndex) => 
+                  _buildEraTab(gameProvider, eraIndex)
+                ).toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildEraTab(GameProvider gameProvider, int eraIndex) {
+    final era = Era.values[eraIndex];
+    final config = eraConfigs[era]!;
+    final isSelected = gameProvider.state.currentEra == eraIndex;
+    
+    return GestureDetector(
+      onTap: () => gameProvider.switchEra(era),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          color: isSelected 
+              ? config.primaryColor.withValues(alpha: 0.3)
+              : Colors.black.withValues(alpha: 0.3),
+          border: Border.all(
+            color: isSelected 
+                ? config.primaryColor
+                : Colors.white.withValues(alpha: 0.2),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              _getEraIcon(era),
+              size: 14,
+              color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              config.subtitle,
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? config.primaryColor : Colors.white.withValues(alpha: 0.7),
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

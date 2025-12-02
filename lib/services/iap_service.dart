@@ -92,6 +92,58 @@ const List<IAPProduct> darkMatterPackages = [
       'darkMatter': 6500, // 5000 + 30% bonus
     },
   ),
+  // ═══════════════════════════════════════════════════════════════
+  // WHALE-TIER PACKS - Premium offerings for high spenders
+  // ═══════════════════════════════════════════════════════════════
+  IAPProduct(
+    id: 'dm_galactic_overlord',
+    name: 'Galactic Overlord',
+    description: '15000 Dark Matter + 40% bonus + Exclusive Border',
+    price: 49.99,
+    priceString: '\$49.99',
+    type: ProductType.consumable,
+    rewards: {
+      'darkMatter': 21000, // 15000 + 40% bonus
+      'exclusiveBorder': 'galactic_overlord',
+      'exclusiveTitle': 'Galactic Overlord',
+    },
+    badge: 'PREMIUM',
+  ),
+  IAPProduct(
+    id: 'dm_universal_dominator',
+    name: 'Universal Dominator',
+    description: '40000 Dark Matter + 50% bonus + Title & Avatar',
+    price: 99.99,
+    priceString: '\$99.99',
+    type: ProductType.consumable,
+    rewards: {
+      'darkMatter': 60000, // 40000 + 50% bonus
+      'exclusiveBorder': 'universal_dominator',
+      'exclusiveTitle': 'Universal Dominator',
+      'exclusiveAvatar': 'dominator_crown',
+      'guaranteedLegendaryArchitect': true,
+    },
+    badge: 'ELITE',
+  ),
+  IAPProduct(
+    id: 'dm_omega_whale',
+    name: 'Omega Ascendant',
+    description: '100000 Dark Matter + 60% bonus + Era V Theme + Crown',
+    price: 199.99,
+    priceString: '\$199.99',
+    type: ProductType.consumable,
+    rewards: {
+      'darkMatter': 160000, // 100000 + 60% bonus
+      'exclusiveBorder': 'omega_whale_animated',
+      'exclusiveTitle': 'Omega Ascendant',
+      'exclusiveAvatar': 'omega_crown',
+      'exclusiveTheme': 'omega_void',
+      'leaderboardCrown': true,
+      'guaranteedLegendaryArchitect': true,
+      'timeWarps': 10, // 10x 1-hour time warps
+    },
+    badge: 'WHALE',
+  ),
 ];
 
 /// Founder's Pack (one-time purchase)

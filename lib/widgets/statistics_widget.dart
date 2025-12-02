@@ -5,6 +5,7 @@ import '../models/prestige_cosmetics.dart';
 import '../providers/game_provider.dart';
 import 'prestige_milestones_widget.dart';
 import 'artifact_collection_widget.dart';
+import 'leaderboard_widget.dart';
 
 /// Enhanced Statistics Screen Widget
 class StatisticsWidget extends StatefulWidget {
@@ -26,7 +27,7 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
   
   @override
@@ -108,6 +109,7 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
             dividerColor: Colors.transparent,
             tabs: const [
               Tab(text: 'OVERVIEW'),
+              Tab(text: 'RANKING'),
               Tab(text: 'PRODUCTION'),
               Tab(text: 'RECORDS'),
             ],
@@ -120,6 +122,7 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
             controller: _tabController,
             children: [
               _buildOverviewTab(state, eraConfig, nextPrestige, canPrestige),
+              _buildLeaderboardTab(eraConfig),
               _buildProductionTab(state, eraConfig),
               _buildRecordsTab(state, eraConfig),
             ],
@@ -127,6 +130,10 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
         ),
       ],
     );
+  }
+
+  Widget _buildLeaderboardTab(EraConfig eraConfig) {
+    return LeaderboardWidget(gameProvider: widget.gameProvider);
   }
 
   Widget _buildOverviewTab(GameState state, EraConfig eraConfig, 

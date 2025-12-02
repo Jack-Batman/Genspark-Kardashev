@@ -16,6 +16,8 @@ import '../core/era_data.dart';
 import '../models/research_v2.dart';
 import '../services/haptic_service.dart';
 import '../services/audio_service.dart';
+import '../services/daily_deals_service.dart';
+import '../services/leaderboard_service.dart';
 import '../widgets/notification_banner.dart';
 import '../widgets/tutorial_manager.dart';
 
@@ -278,7 +280,42 @@ class GameProvider extends ChangeNotifier {
     _startPlayTimeTimer();
     _startAutoTapTimer();
     
+    // Initialize leaderboard and daily deals services
+    _initializeMonetizationServices();
+    
     notifyListeners();
+  }
+  
+  /// Initialize monetization services (leaderboard, daily deals)
+  Future<void> _initializeMonetizationServices() async {
+    try {
+      // Initialize leaderboard service
+      final leaderboardService = LeaderboardService();
+      await leaderboardService.initialize();
+      
+      // Update player stats for leaderboard
+      leaderboardService.updatePlayerStats(
+        totalEnergy: _state.totalEnergyEarned,
+        kardashevLevel: _state.kardashevLevel,
+        prestigeCount: _state.prestigeCount,
+        darkMatter: _state.darkMatter,
+        playTimeSeconds: _state.playTimeSeconds,
+        expeditionsCompleted: _state.completedLegendaryExpeditions.length,
+        architectsOwned: _state.ownedArchitects.length,
+      );
+      
+      // Initialize daily deals service
+      final dealsService = DailyDealsService();
+      await dealsService.initialize();
+      
+      if (kDebugMode) {
+        debugPrint('Monetization services initialized');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to initialize monetization services: $e');
+      }
+    }
   }
   
   /// Check if player is eligible for daily login reward
@@ -401,6 +438,8 @@ class GameProvider extends ChangeNotifier {
   int _challengeCheckCounter = 0;
   int _notifyCounter = 0; // Throttle UI updates
   double _accumulatedEnergyForChallenge = 0;
+  bool _legendaryStageReadyNotified = false;  // Track if we've notified about ready stage
+  int _legendaryCheckCounter = 0;  // Check legendary stages less frequently
   
   void _startGameLoop() {
     _gameLoop = Timer.periodic(const Duration(milliseconds: 100), (timer) {
@@ -433,6 +472,13 @@ class GameProvider extends ChangeNotifier {
           
           // Check for abilities coming off cooldown
           _checkAbilityCooldowns();
+        }
+        
+        // Check for legendary stage ready every 3 seconds
+        _legendaryCheckCounter++;
+        if (_legendaryCheckCounter >= 30) {
+          _legendaryCheckCounter = 0;
+          _checkLegendaryStageReady();
         }
         
         // Throttle UI updates to every 200ms (2 ticks) for better performance
@@ -470,6 +516,59 @@ class GameProvider extends ChangeNotifier {
         );
       }
     }
+  }
+  
+  /// Check if a legendary stage is ready and show notification
+  void _checkLegendaryStageReady() {
+    final active = _state.activeLegendary;
+    if (active == null) {
+      _legendaryStageReadyNotified = false;  // Reset when no active expedition
+      return;
+    }
+    
+    if (active.isCompleted) {
+      _legendaryStageReadyNotified = false;  // Reset when expedition is done
+      return;
+    }
+    
+    // Check if current stage can be resolved
+    if (active.canResolveCurrentStage && !_legendaryStageReadyNotified) {
+      final expedition = active.expedition;
+      final currentStage = active.currentStageInfo;
+      if (expedition != null && currentStage != null) {
+        _legendaryStageReadyNotified = true;
+        
+        _notificationController.showLegendaryStageReady(
+          expedition.name,
+          currentStage.name,
+          currentStage.boss != null,
+          () {
+            // Callback is handled by UI - will show the expedition dialog
+            _showLegendaryStageDialog = true;
+            notifyListeners();
+          },
+        );
+        
+        // Also trigger the dialog to show automatically
+        _showLegendaryStageDialog = true;
+        notifyListeners();
+      }
+    }
+  }
+  
+  /// Flag to indicate legendary stage dialog should be shown
+  bool _showLegendaryStageDialog = false;
+  bool get showLegendaryStageDialog => _showLegendaryStageDialog;
+  
+  /// Dismiss the legendary stage dialog
+  void dismissLegendaryStageDialog() {
+    _showLegendaryStageDialog = false;
+    notifyListeners();
+  }
+  
+  /// Reset the legendary stage notification flag (call after stage is resolved)
+  void resetLegendaryStageNotification() {
+    _legendaryStageReadyNotified = false;
   }
   
   /// Auto-tap timer based on research
@@ -699,6 +798,65 @@ class GameProvider extends ChangeNotifier {
     HapticService.mediumImpact();
     notifyListeners();
     return true;
+  }
+  
+  /// Upgrade a generator multiple times (V2 system)
+  bool upgradeGeneratorBulkV2(GeneratorDataV2 genData, int count) {
+    if (_state.getGeneratorCount(genData.id) == 0) return false;
+    if (count <= 0) return false;
+    
+    // Calculate total cost for bulk upgrade
+    double totalCost = 0;
+    int currentLevel = _state.getGeneratorLevel(genData.id);
+    
+    for (int i = 0; i < count; i++) {
+      final levelCost = genData.baseCost * 10 * pow(genData.costMultiplier, currentLevel + i) * (1 - _state.costReductionBonus);
+      totalCost += levelCost;
+    }
+    
+    if (_state.energy < totalCost) return false;
+    
+    _state.energy -= totalCost;
+    _state.generatorLevels[genData.id] = currentLevel + count;
+    
+    _state.updateKardashevLevel();
+    AudioService.playPurchase();
+    HapticService.mediumImpact();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Calculate how many upgrades can be afforded
+  int calculateMaxUpgrades(GeneratorDataV2 genData) {
+    if (_state.getGeneratorCount(genData.id) == 0) return 0;
+    
+    double available = _state.energy;
+    int currentLevel = _state.getGeneratorLevel(genData.id);
+    int canUpgrade = 0;
+    
+    while (canUpgrade < 1000) { // Cap at 1000 to prevent infinite loops
+      final cost = genData.baseCost * 10 * pow(genData.costMultiplier, currentLevel + canUpgrade) * (1 - _state.costReductionBonus);
+      if (available >= cost) {
+        available -= cost;
+        canUpgrade++;
+      } else {
+        break;
+      }
+    }
+    
+    return canUpgrade;
+  }
+  
+  /// Calculate bulk upgrade cost
+  double calculateBulkUpgradeCost(GeneratorDataV2 genData, int count) {
+    int currentLevel = _state.getGeneratorLevel(genData.id);
+    double totalCost = 0;
+    
+    for (int i = 0; i < count; i++) {
+      totalCost += genData.baseCost * 10 * pow(genData.costMultiplier, currentLevel + i) * (1 - _state.costReductionBonus);
+    }
+    
+    return totalCost;
   }
   
   /// Get generators for current era
@@ -1583,7 +1741,7 @@ class GameProvider extends ChangeNotifier {
   }
   
   /// Calculate Dark Energy reward based on progress
-  /// Uses cube root formula for diminishing returns
+  /// DRASTICALLY REDUCED - Each prestige should only allow ~10-20% faster progress
   double calculateDarkEnergyReward() {
     // Base calculation on total energy earned this run
     final currentRunEnergy = _state.totalEnergyEarned;
@@ -1591,16 +1749,23 @@ class GameProvider extends ChangeNotifier {
     // Edge case: No energy earned
     if (currentRunEnergy <= 0) return 0;
     
-    // Cube root formula for diminishing returns (like Soul Eggs in Egg Inc)
-    // Scale factor adjusts for game balance - optimized for Dark Energy
-    final scaleFactor = _state.kardashevLevel < 1.0 ? 1.0 :
-                       _state.kardashevLevel < 2.0 ? 5.0 :
-                       _state.kardashevLevel < 3.0 ? 25.0 : 100.0;
+    // HEAVILY NERFED: Use log10 for extreme diminishing returns
+    // This ensures even massive energy amounts give small Dark Energy rewards
+    // Example: 1e15 energy = log10(1e15/1e9) = log10(1e6) = 6 * scaleFactor
+    final logEnergy = currentRunEnergy > 1e9 ? log(currentRunEnergy / 1e9) / ln10 : 0.0;
     
-    final reward = pow(currentRunEnergy / 1000000, 1/3) * scaleFactor;
+    // Very small scale factors - each era only slightly increases rewards
+    final scaleFactor = _state.kardashevLevel < 1.0 ? 0.5 :   // Era I: 0.5x
+                       _state.kardashevLevel < 2.0 ? 1.0 :    // Era II: 1x
+                       _state.kardashevLevel < 3.0 ? 1.5 :    // Era III: 1.5x
+                       _state.kardashevLevel < 4.0 ? 2.0 :    // Era IV: 2x
+                       2.5;                                    // Era V: 2.5x
     
-    // Ensure minimum reward based on Kardashev level reached
-    final minReward = _state.kardashevLevel * 5;
+    // Base reward is very small: typically 1-20 Dark Energy per prestige
+    final reward = logEnergy * scaleFactor;
+    
+    // Minimum reward is tiny - just 0.5 per 0.1 Kardashev level
+    final minReward = _state.kardashevLevel * 0.5;
     
     // Guard against NaN/Infinity
     final finalReward = max(reward, minReward);
@@ -1610,13 +1775,26 @@ class GameProvider extends ChangeNotifier {
   }
   
   /// Calculate production bonus from Dark Energy
-  /// Each Dark Energy gives meaningful bonus
+  /// DRASTICALLY REDUCED - Each Dark Energy gives only +1% bonus (was +10%)
+  /// With logarithmic scaling for further diminishing returns
   double calculateProductionBonusFromDarkEnergy(double darkEnergy) {
     if (darkEnergy <= 0) return 0;
     
-    // Linear formula: Each Dark Energy gives +10% production bonus
-    // This prevents diminishing returns and keeps prestige rewarding at higher levels
-    return darkEnergy * 0.10; 
+    // Use square root for diminishing returns on large amounts
+    // First 100 DE: ~10% per DE (linear-ish)
+    // 100-1000 DE: ~3% per DE 
+    // 1000+ DE: ~1% per DE (heavily diminished)
+    
+    if (darkEnergy <= 100) {
+      // First 100 Dark Energy: 1% each = up to 100% bonus
+      return darkEnergy * 0.01;
+    } else if (darkEnergy <= 1000) {
+      // 100-1000: 100% base + 0.5% each additional = up to 550% bonus
+      return 1.0 + (darkEnergy - 100) * 0.005;
+    } else {
+      // 1000+: 550% base + 0.1% each additional (heavily diminished)
+      return 5.5 + (darkEnergy - 1000) * 0.001;
+    }
   }
   
   /// Prestige - Reset progress for permanent bonus
@@ -1680,6 +1858,17 @@ class GameProvider extends ChangeNotifier {
     
     AudioService.playPrestige();
     HapticService.heavyImpact();
+    
+    // Trigger prestige welcome back bundle
+    try {
+      final dealsService = DailyDealsService();
+      dealsService.triggerPrestigeBundle(newPrestigeCount);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Failed to trigger prestige bundle: $e');
+      }
+    }
+    
     _saveGame();
     notifyListeners();
     return true;
@@ -2172,6 +2361,11 @@ class GameProvider extends ChangeNotifier {
     
     AudioService.playAchievement();
     HapticService.heavyImpact();
+    
+    // Reset the notification flag so we can notify about the next stage
+    _legendaryStageReadyNotified = false;
+    _showLegendaryStageDialog = false;
+    
     _saveGame();
     notifyListeners();
     

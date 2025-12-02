@@ -211,101 +211,101 @@ const List<ResearchNode> allResearch = [
   // ERA II - STELLAR RESEARCH
   // ═══════════════════════════════════════════════════════════════
   
-  // Tier 1
+  // Tier 1 - Entry level for Stellar Era (50M-100M range)
   ResearchNode(
     id: 's_efficiency_1', name: 'Solar Proximity', description: 'Harvest energy closer to the star.',
     icon: '☀️', era: Era.stellar, category: ResearchCategory.efficiency, tier: 1,
-    energyCost: 50000000, timeSeconds: 120, prerequisites: [],
+    energyCost: 5e7, timeSeconds: 120, prerequisites: [],
     effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 0.15),
   ),
   ResearchNode(
     id: 's_automation_1', name: 'Swarm Intelligence', description: 'Coordinate satellite swarms.',
     icon: '🐝', era: Era.stellar, category: ResearchCategory.automation, tier: 1,
-    energyCost: 75000000, timeSeconds: 150, prerequisites: [],
+    energyCost: 7.5e7, timeSeconds: 150, prerequisites: [],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 15),
   ),
   ResearchNode(
     id: 's_expansion_1', name: 'Mass Production', description: 'Automated mirror construction.',
     icon: '🏭', era: Era.stellar, category: ResearchCategory.expansion, tier: 1,
-    energyCost: 60000000, timeSeconds: 130, prerequisites: [],
+    energyCost: 6e7, timeSeconds: 130, prerequisites: [],
     effect: ResearchEffect(type: ResearchEffectType.costReduction, value: 0.15),
   ),
   
-  // Tier 2
+  // Tier 2 - Mid-early Stellar (1T-5T range - 1e12 to 5e12)
   ResearchNode(
     id: 's_efficiency_2', name: 'Coronal Harvesting', description: 'Extract plasma from corona.',
     icon: '🔥', era: Era.stellar, category: ResearchCategory.efficiency, tier: 2,
-    energyCost: 500000000, timeSeconds: 300, prerequisites: ['s_efficiency_1'],
+    energyCost: 2e12, timeSeconds: 300, prerequisites: ['s_efficiency_1'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.30, targetId: 'Star Lifter'),
   ),
   ResearchNode(
     id: 's_automation_2', name: 'Stellar Network', description: 'System-wide coordination.',
     icon: '🌐', era: Era.stellar, category: ResearchCategory.automation, tier: 2,
-    energyCost: 600000000, timeSeconds: 360, prerequisites: ['s_automation_1'],
+    energyCost: 3e12, timeSeconds: 360, prerequisites: ['s_automation_1'],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 30),
   ),
   ResearchNode(
     id: 's_expansion_2', name: 'Dyson Architecture', description: 'Advanced structural design.',
     icon: '📐', era: Era.stellar, category: ResearchCategory.expansion, tier: 2,
-    energyCost: 400000000, timeSeconds: 280, prerequisites: ['s_expansion_1'],
+    energyCost: 1.5e12, timeSeconds: 280, prerequisites: ['s_expansion_1'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.25, targetId: 'Dyson Swarm'),
   ),
   ResearchNode(
     id: 's_exotic_1', name: 'Stellar Alchemy', description: 'Transmute elements in stellar cores.',
     icon: '⚗️', era: Era.stellar, category: ResearchCategory.exotic, tier: 2,
-    energyCost: 800000000, timeSeconds: 450, prerequisites: ['s_efficiency_1'],
+    energyCost: 5e12, timeSeconds: 450, prerequisites: ['s_efficiency_1'],
     effect: ResearchEffect(type: ResearchEffectType.darkMatterBonus, value: 0.40),
   ),
   
-  // Tier 3
+  // Tier 3 - Mid-late Stellar (100T-500T range - 1e14 to 5e14)
   ResearchNode(
     id: 's_efficiency_3', name: 'Total Stellar Capture', description: 'Maximum energy extraction.',
     icon: '💯', era: Era.stellar, category: ResearchCategory.efficiency, tier: 3,
-    energyCost: 10000000000, timeSeconds: 720, prerequisites: ['s_efficiency_2'],
+    energyCost: 2e14, timeSeconds: 720, prerequisites: ['s_efficiency_2'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.40, targetId: 'Dyson Sphere'),
   ),
   ResearchNode(
     id: 's_automation_3', name: 'Von Neumann Probes', description: 'Self-replicating constructors.',
     icon: '🔄', era: Era.stellar, category: ResearchCategory.automation, tier: 3,
-    energyCost: 8000000000, timeSeconds: 600, prerequisites: ['s_automation_2'],
+    energyCost: 1.5e14, timeSeconds: 600, prerequisites: ['s_automation_2'],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 50),
   ),
   ResearchNode(
     id: 's_expansion_3', name: 'Stellar Engineering', description: 'Modify the star itself.',
     icon: '⭐', era: Era.stellar, category: ResearchCategory.expansion, tier: 3,
-    energyCost: 15000000000, timeSeconds: 900, prerequisites: ['s_expansion_2'],
+    energyCost: 3e14, timeSeconds: 900, prerequisites: ['s_expansion_2'],
     effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 0.35),
   ),
   ResearchNode(
     id: 's_exotic_2', name: 'Hawking Radiation', description: 'Understand black hole emissions.',
     icon: '🕳️', era: Era.stellar, category: ResearchCategory.exotic, tier: 3,
-    energyCost: 20000000000, timeSeconds: 1200, prerequisites: ['s_exotic_1'],
+    energyCost: 5e14, timeSeconds: 1200, prerequisites: ['s_exotic_1'],
     effect: ResearchEffect(type: ResearchEffectType.researchSpeed, value: 0.30),
   ),
   
-  // Tier 4
+  // Tier 4 - End of Stellar Era (10Q-100Q range - 1e16 to 1e17)
   ResearchNode(
     id: 's_efficiency_4', name: 'Perfect Efficiency', description: 'Near-total energy conversion.',
     icon: '💎', era: Era.stellar, category: ResearchCategory.efficiency, tier: 4,
-    energyCost: 200000000000, timeSeconds: 2400, prerequisites: ['s_efficiency_3'],
+    energyCost: 2e16, timeSeconds: 2400, prerequisites: ['s_efficiency_3'],
     effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 0.75),
   ),
   ResearchNode(
     id: 's_automation_4', name: 'Stellar Mind', description: 'AI spanning the solar system.',
     icon: '🧠', era: Era.stellar, category: ResearchCategory.automation, tier: 4,
-    energyCost: 150000000000, timeSeconds: 2100, prerequisites: ['s_automation_3'],
+    energyCost: 1.5e16, timeSeconds: 2100, prerequisites: ['s_automation_3'],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 100),
   ),
   ResearchNode(
     id: 's_expansion_4', name: 'Galactic Preparation', description: 'Ready for interstellar expansion.',
     icon: '🌌', era: Era.stellar, category: ResearchCategory.expansion, tier: 4,
-    energyCost: 500000000000, timeSeconds: 3600, prerequisites: ['s_expansion_3', 's_exotic_2'],
+    energyCost: 5e16, timeSeconds: 3600, prerequisites: ['s_expansion_3', 's_exotic_2'],
     effect: ResearchEffect(type: ResearchEffectType.eraUnlock, value: 2),
   ),
   ResearchNode(
     id: 's_exotic_3', name: 'Transcendence II', description: 'Second step beyond.',
     icon: '🔆', era: Era.stellar, category: ResearchCategory.exotic, tier: 4,
-    energyCost: 300000000000, timeSeconds: 3000, prerequisites: ['s_exotic_2'],
+    energyCost: 3e16, timeSeconds: 3000, prerequisites: ['s_exotic_2'],
     effect: ResearchEffect(type: ResearchEffectType.prestigeBonus, value: 1.00),
   ),
   
@@ -313,7 +313,7 @@ const List<ResearchNode> allResearch = [
   // ERA III - GALACTIC RESEARCH
   // ═══════════════════════════════════════════════════════════════
   
-  // Tier 1
+  // Tier 1 - Entry level for Galactic Era (100Q-500Q range - 1e17 to 5e17)
   ResearchNode(
     id: 'g_efficiency_1', name: 'Interstellar Logistics', description: 'Efficient energy transmission across light-years.',
     icon: '🚀', era: Era.galactic, category: ResearchCategory.efficiency, tier: 1,
@@ -333,81 +333,81 @@ const List<ResearchNode> allResearch = [
     effect: ResearchEffect(type: ResearchEffectType.costReduction, value: 0.20),
   ),
   
-  // Tier 2
+  // Tier 2 - Mid-early Galactic (10Qi-50Qi range - 1e19 to 5e19)
   ResearchNode(
     id: 'g_efficiency_2', name: 'Neutron Star Mining', description: 'Extract degenerate matter.',
     icon: '💫', era: Era.galactic, category: ResearchCategory.efficiency, tier: 2,
-    energyCost: 1e18, timeSeconds: 400, prerequisites: ['g_efficiency_1'],
+    energyCost: 2e19, timeSeconds: 400, prerequisites: ['g_efficiency_1'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.35, targetId: 'Neutron Harvester'),
   ),
   ResearchNode(
     id: 'g_automation_2', name: 'Hive Mind', description: 'Unified galactic consciousness.',
     icon: '🐝', era: Era.galactic, category: ResearchCategory.automation, tier: 2,
-    energyCost: 1.2e18, timeSeconds: 450, prerequisites: ['g_automation_1'],
+    energyCost: 3e19, timeSeconds: 450, prerequisites: ['g_automation_1'],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 500),
   ),
   ResearchNode(
     id: 'g_expansion_2', name: 'Warp Technology', description: 'Faster-than-light travel.',
     icon: '⚡', era: Era.galactic, category: ResearchCategory.expansion, tier: 2,
-    energyCost: 8e17, timeSeconds: 380, prerequisites: ['g_expansion_1'],
+    energyCost: 1.5e19, timeSeconds: 380, prerequisites: ['g_expansion_1'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.30, targetId: 'Stellar Engine'),
   ),
   ResearchNode(
     id: 'g_exotic_1', name: 'Singularity Physics', description: 'Master black hole mechanics.',
     icon: '🕳️', era: Era.galactic, category: ResearchCategory.exotic, tier: 2,
-    energyCost: 2e18, timeSeconds: 600, prerequisites: ['g_efficiency_1'],
+    energyCost: 5e19, timeSeconds: 600, prerequisites: ['g_efficiency_1'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.40, targetId: 'Penrose Sphere'),
   ),
   
-  // Tier 3
+  // Tier 3 - Mid-late Galactic (1Sx-10Sx range - 1e21 to 1e22)
   ResearchNode(
     id: 'g_efficiency_3', name: 'Quasar Manipulation', description: 'Control active galactic nuclei.',
     icon: '💥', era: Era.galactic, category: ResearchCategory.efficiency, tier: 3,
-    energyCost: 1e19, timeSeconds: 900, prerequisites: ['g_efficiency_2'],
+    energyCost: 2e21, timeSeconds: 900, prerequisites: ['g_efficiency_2'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.45, targetId: 'Quasar Tap'),
   ),
   ResearchNode(
     id: 'g_automation_3', name: 'Galactic Overmind', description: 'Supreme coordinating intelligence.',
     icon: '👁️', era: Era.galactic, category: ResearchCategory.automation, tier: 3,
-    energyCost: 8e18, timeSeconds: 800, prerequisites: ['g_automation_2'],
+    energyCost: 1.5e21, timeSeconds: 800, prerequisites: ['g_automation_2'],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 1000),
   ),
   ResearchNode(
     id: 'g_expansion_3', name: 'Wormhole Network', description: 'Instant galactic transportation.',
     icon: '🌀', era: Era.galactic, category: ResearchCategory.expansion, tier: 3,
-    energyCost: 1.5e19, timeSeconds: 1200, prerequisites: ['g_expansion_2'],
+    energyCost: 3e21, timeSeconds: 1200, prerequisites: ['g_expansion_2'],
     effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 0.50),
   ),
   ResearchNode(
     id: 'g_exotic_2', name: 'Cosmic String Theory', description: 'Understand spacetime defects.',
     icon: '〰️', era: Era.galactic, category: ResearchCategory.exotic, tier: 3,
-    energyCost: 2.5e19, timeSeconds: 1500, prerequisites: ['g_exotic_1'],
+    energyCost: 5e21, timeSeconds: 1500, prerequisites: ['g_exotic_1'],
     effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.50, targetId: 'Cosmic String Mine'),
   ),
   
-  // Tier 4
+  // Tier 4 - End of Galactic Era (100Sx-1Sp range - 1e23 to 1e24)
   ResearchNode(
     id: 'g_efficiency_4', name: 'Galactic Harvesting', description: 'Extract energy from the entire galaxy.',
     icon: '🌌', era: Era.galactic, category: ResearchCategory.efficiency, tier: 4,
-    energyCost: 1e20, timeSeconds: 3000, prerequisites: ['g_efficiency_3'],
+    energyCost: 2e23, timeSeconds: 3000, prerequisites: ['g_efficiency_3'],
     effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 1.00),
   ),
   ResearchNode(
     id: 'g_automation_4', name: 'Universal Compute', description: 'Galaxy-spanning computation.',
     icon: '💻', era: Era.galactic, category: ResearchCategory.automation, tier: 4,
-    energyCost: 8e19, timeSeconds: 2700, prerequisites: ['g_automation_3'],
+    energyCost: 1.5e23, timeSeconds: 2700, prerequisites: ['g_automation_3'],
     effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 2500),
   ),
   ResearchNode(
     id: 'g_expansion_4', name: 'Universal Preparation', description: 'Ready to transcend the galaxy.',
     icon: '🔮', era: Era.galactic, category: ResearchCategory.expansion, tier: 4,
-    energyCost: 5e20, timeSeconds: 5400, prerequisites: ['g_expansion_3', 'g_exotic_2'],
+    energyCost: 5e23, timeSeconds: 5400, prerequisites: ['g_expansion_3', 'g_exotic_2'],
     effect: ResearchEffect(type: ResearchEffectType.eraUnlock, value: 3),
   ),
   ResearchNode(
     id: 'g_exotic_3', name: 'Transcendence III', description: 'Third step beyond.',
     icon: '🔆', era: Era.galactic, category: ResearchCategory.exotic, tier: 4,
-    energyCost: 3e20, timeSeconds: 4500, prerequisites: ['g_exotic_2'],
+    energyCost: 3e23, timeSeconds: 4500, prerequisites: ['g_exotic_2'],
     effect: ResearchEffect(type: ResearchEffectType.prestigeBonus, value: 2.50),
   ),
   
@@ -511,6 +511,130 @@ const List<ResearchNode> allResearch = [
     icon: '🔆', era: Era.universal, category: ResearchCategory.exotic, tier: 4,
     energyCost: 1e30, timeSeconds: 10800, prerequisites: ['u_exotic_2', 'u_efficiency_4'],
     effect: ResearchEffect(type: ResearchEffectType.prestigeBonus, value: 10.00),
+  ),
+  
+  // ═══════════════════════════════════════════════════════════════
+  // ERA V - MULTIVERSAL RESEARCH
+  // The ultimate endgame research - extremely expensive and powerful
+  // Costs scale from 1e32 to 1e58 (matching Era V generator costs)
+  // ═══════════════════════════════════════════════════════════════
+  
+  // Tier 1 - Entry level multiversal research (costs ~1e32-1e33)
+  ResearchNode(
+    id: 'm_efficiency_1', name: 'Quantum Foam Dynamics', description: 'Master the fabric of spacetime itself.',
+    icon: '🫧', era: Era.multiversal, category: ResearchCategory.efficiency, tier: 1,
+    energyCost: 5e32, timeSeconds: 600, prerequisites: [],
+    effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 0.50),
+  ),
+  ResearchNode(
+    id: 'm_automation_1', name: 'Multiversal Consciousness', description: 'Awareness spanning infinite realities.',
+    icon: '🧿', era: Era.multiversal, category: ResearchCategory.automation, tier: 1,
+    energyCost: 8e32, timeSeconds: 720, prerequisites: [],
+    effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 500000),
+  ),
+  ResearchNode(
+    id: 'm_expansion_1', name: 'Brane Manipulation', description: 'Control the membranes between universes.',
+    icon: '🌊', era: Era.multiversal, category: ResearchCategory.expansion, tier: 1,
+    energyCost: 6e32, timeSeconds: 660, prerequisites: [],
+    effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.40, targetId: 'Quantum Foam Siphon'),
+  ),
+  
+  // Tier 2 - Mid-early research (costs ~1e35-1e37)
+  ResearchNode(
+    id: 'm_efficiency_2', name: 'Brane Collision Theory', description: 'Harness energy from colliding universes.',
+    icon: '💥', era: Era.multiversal, category: ResearchCategory.efficiency, tier: 2,
+    energyCost: 5e35, timeSeconds: 1200, prerequisites: ['m_efficiency_1'],
+    effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.50, targetId: 'Brane Collider'),
+  ),
+  ResearchNode(
+    id: 'm_automation_2', name: 'Infinite Parallel Processing', description: 'Compute across infinite timelines simultaneously.',
+    icon: '🔀', era: Era.multiversal, category: ResearchCategory.automation, tier: 2,
+    energyCost: 8e35, timeSeconds: 1400, prerequisites: ['m_automation_1'],
+    effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 2000000),
+  ),
+  ResearchNode(
+    id: 'm_expansion_2', name: 'Entropic Mastery', description: 'Command the forces of decay and renewal.',
+    icon: '♻️', era: Era.multiversal, category: ResearchCategory.expansion, tier: 2,
+    energyCost: 3e36, timeSeconds: 1100, prerequisites: ['m_expansion_1'],
+    effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.55, targetId: 'Entropy Deleter'),
+  ),
+  ResearchNode(
+    id: 'm_exotic_1', name: 'Causality Loops', description: 'Create stable paradoxes for energy extraction.',
+    icon: '🔄', era: Era.multiversal, category: ResearchCategory.exotic, tier: 2,
+    energyCost: 1e37, timeSeconds: 1800, prerequisites: ['m_efficiency_1'],
+    effect: ResearchEffect(type: ResearchEffectType.offlineBonus, value: 1.00),
+  ),
+  
+  // Tier 3 - Mid-late research (costs ~1e40-1e45)
+  ResearchNode(
+    id: 'm_efficiency_3', name: 'Timeline Synthesis', description: 'Weave favorable outcomes into existence.',
+    icon: '🧶', era: Era.multiversal, category: ResearchCategory.efficiency, tier: 3,
+    energyCost: 5e40, timeSeconds: 2400, prerequisites: ['m_efficiency_2'],
+    effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.65, targetId: 'Timeline Weaver'),
+  ),
+  ResearchNode(
+    id: 'm_automation_3', name: 'Omniversal Hivemind', description: 'Unite all intelligent beings across realities.',
+    icon: '🐝', era: Era.multiversal, category: ResearchCategory.automation, tier: 3,
+    energyCost: 8e41, timeSeconds: 2800, prerequisites: ['m_automation_2'],
+    effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 10000000),
+  ),
+  ResearchNode(
+    id: 'm_expansion_3', name: 'Reality Compiler', description: 'Program the source code of existence.',
+    icon: '💻', era: Era.multiversal, category: ResearchCategory.expansion, tier: 3,
+    energyCost: 2e42, timeSeconds: 3000, prerequisites: ['m_expansion_2'],
+    effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 2.00),
+  ),
+  ResearchNode(
+    id: 'm_exotic_2', name: 'Logic Transcendence', description: 'Operate beyond mathematical constraints.',
+    icon: '📐', era: Era.multiversal, category: ResearchCategory.exotic, tier: 3,
+    energyCost: 5e43, timeSeconds: 3600, prerequisites: ['m_exotic_1'],
+    effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 0.75, targetId: 'Logic Rewriter'),
+  ),
+  
+  // Tier 4 - Endgame research (costs ~1e48-1e55)
+  ResearchNode(
+    id: 'm_efficiency_4', name: 'Void Energy Extraction', description: 'Draw power from the space between realities.',
+    icon: '🕳️', era: Era.multiversal, category: ResearchCategory.efficiency, tier: 4,
+    energyCost: 1e48, timeSeconds: 5400, prerequisites: ['m_efficiency_3'],
+    effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 5.00),
+  ),
+  ResearchNode(
+    id: 'm_automation_4', name: 'Absolute Omniscience', description: 'Know everything that ever was or will be.',
+    icon: '👁️‍🗨️', era: Era.multiversal, category: ResearchCategory.automation, tier: 4,
+    energyCost: 5e49, timeSeconds: 6000, prerequisites: ['m_automation_3'],
+    effect: ResearchEffect(type: ResearchEffectType.autoTap, value: 50000000),
+  ),
+  ResearchNode(
+    id: 'm_expansion_4', name: 'Omniversal Sovereignty', description: 'Claim dominion over all that exists.',
+    icon: '👑', era: Era.multiversal, category: ResearchCategory.expansion, tier: 4,
+    energyCost: 1e52, timeSeconds: 7200, prerequisites: ['m_expansion_3', 'm_exotic_2'],
+    effect: ResearchEffect(type: ResearchEffectType.generatorBoost, value: 1.00, targetId: 'Omniversal Throne'),
+  ),
+  ResearchNode(
+    id: 'm_exotic_3', name: 'The Final Understanding', description: 'Comprehend the ultimate truth of all existence.',
+    icon: '🌟', era: Era.multiversal, category: ResearchCategory.exotic, tier: 4,
+    energyCost: 5e53, timeSeconds: 9000, prerequisites: ['m_exotic_2', 'm_efficiency_4'],
+    effect: ResearchEffect(type: ResearchEffectType.prestigeBonus, value: 25.00),
+  ),
+  
+  // Tier 5 - Ultimate endgame (costs ~1e55-1e58) - The final frontier
+  ResearchNode(
+    id: 'm_ultimate_1', name: 'Infinite Regression', description: 'Create universes that create universes forever.',
+    icon: '∞', era: Era.multiversal, category: ResearchCategory.efficiency, tier: 5,
+    energyCost: 1e55, timeSeconds: 14400, prerequisites: ['m_efficiency_4', 'm_expansion_4'],
+    effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 10.00),
+  ),
+  ResearchNode(
+    id: 'm_ultimate_2', name: 'The Omega Point', description: 'Converge all timelines into a single perfect moment.',
+    icon: 'Ω', era: Era.multiversal, category: ResearchCategory.exotic, tier: 5,
+    energyCost: 5e56, timeSeconds: 21600, prerequisites: ['m_exotic_3', 'm_automation_4'],
+    effect: ResearchEffect(type: ResearchEffectType.productionMultiplier, value: 25.00),
+  ),
+  ResearchNode(
+    id: 'm_ultimate_3', name: 'Absolute Ascension', description: 'Transcend existence itself. Become everything and nothing.',
+    icon: '✴️', era: Era.multiversal, category: ResearchCategory.exotic, tier: 5,
+    energyCost: 1e58, timeSeconds: 43200, prerequisites: ['m_ultimate_1', 'm_ultimate_2'],
+    effect: ResearchEffect(type: ResearchEffectType.prestigeBonus, value: 100.00),
   ),
 ];
 

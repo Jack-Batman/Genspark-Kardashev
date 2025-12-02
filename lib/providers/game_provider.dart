@@ -29,6 +29,9 @@ class PrestigeInfo {
   final double totalProductionBonus;
   final String tierName;
   final double requiredKardashev;
+  final bool hasDiminishingReturns; // True if reward is reduced due to low K
+  final double diminishingMultiplier; // The multiplier applied (0.0-1.0)
+  final double highestKardashev; // Highest K ever achieved
   
   const PrestigeInfo({
     required this.darkEnergyReward,
@@ -37,6 +40,9 @@ class PrestigeInfo {
     required this.totalProductionBonus,
     required this.tierName,
     required this.requiredKardashev,
+    this.hasDiminishingReturns = false,
+    this.diminishingMultiplier = 1.0,
+    this.highestKardashev = 0.0,
   });
 }
 
@@ -455,6 +461,11 @@ class GameProvider extends ChangeNotifier {
         _state.totalEnergyEarned += energyGain;
         _accumulatedEnergyForChallenge += energyGain;
         _state.updateKardashevLevel();
+        
+        // Track highest Kardashev level ever achieved (for prestige diminishing returns)
+        if (_state.kardashevLevel > _state.highestKardashevEver) {
+          _state.highestKardashevEver = _state.kardashevLevel;
+        }
         
         // Check for era transition milestones every second
         _achievementCheckCounter++;
@@ -1762,6 +1773,7 @@ class GameProvider extends ChangeNotifier {
   
   /// Calculate Dark Energy reward based on progress
   /// BALANCED: Early game gets meaningful rewards, late game has diminishing returns
+  /// DIMINISHING RETURNS: Prestiging at same/lower K level gives reduced rewards
   double calculateDarkEnergyReward() {
     // Base calculation on total energy earned this run
     final currentRunEnergy = _state.totalEnergyEarned;
@@ -1802,7 +1814,7 @@ class GameProvider extends ChangeNotifier {
     }
     
     // Base reward from logarithmic calculation
-    final reward = logEnergy * scaleFactor;
+    double reward = logEnergy * scaleFactor;
     
     // Minimum reward based on Kardashev level - ensures early game feels rewarding
     // K0.885 should get at least ~5 Dark Energy
@@ -1810,11 +1822,51 @@ class GameProvider extends ChangeNotifier {
         ? 3.0 + (_state.kardashevLevel * 5.0)  // Era I: 3-8 DE minimum
         : 5.0 + (_state.kardashevLevel * 2.0); // Era II+: smaller minimum scaling
     
-    // Guard against NaN/Infinity
-    final finalReward = max(reward, minReward);
-    if (finalReward.isNaN || finalReward.isInfinite) return minReward;
+    reward = max(reward, minReward);
     
-    return finalReward;
+    // ═══════════════════════════════════════════════════════════════
+    // DIMINISHING RETURNS: Penalize prestiging at same/lower K level
+    // Forces players to progress further to get meaningful rewards
+    // ═══════════════════════════════════════════════════════════════
+    
+    final highestK = _state.highestKardashevEver;
+    final currentK = _state.kardashevLevel;
+    
+    if (highestK > 0 && currentK <= highestK) {
+      // Calculate how far below the highest K we are
+      // If at same K: multiplier = 0.2 (80% reduction)
+      // If slightly above: scales up to 1.0 (no reduction)
+      
+      final progressRatio = currentK / highestK; // 0.0 to 1.0
+      
+      // Harsh diminishing returns curve:
+      // - At 100% of highest K: 20% of normal reward
+      // - At 110% of highest K: 50% of normal reward  
+      // - At 120% of highest K: 80% of normal reward
+      // - At 130%+ of highest K: 100% of normal reward
+      
+      double diminishingMultiplier;
+      if (progressRatio <= 1.0) {
+        // At or below highest K - heavy penalty
+        // Use a curve that gives 20% at ratio=1.0, scaling down to 5% at ratio=0.5
+        diminishingMultiplier = 0.05 + (progressRatio * 0.15); // 5% to 20%
+      } else {
+        // Above highest K - reward scales back up
+        final excessRatio = progressRatio - 1.0; // How much above highest K
+        diminishingMultiplier = 0.20 + (excessRatio * 2.67); // 20% + scales to 100% at 130%
+        diminishingMultiplier = diminishingMultiplier.clamp(0.20, 1.0);
+      }
+      
+      reward = reward * diminishingMultiplier;
+      
+      // Ensure at least a tiny reward so player doesn't feel stuck
+      reward = max(reward, 0.5);
+    }
+    
+    // Guard against NaN/Infinity
+    if (reward.isNaN || reward.isInfinite) return 0.5;
+    
+    return reward;
   }
   
   /// Calculate production bonus from Dark Energy
@@ -1876,6 +1928,9 @@ class GameProvider extends ChangeNotifier {
     final preservedActiveExpeditions = List<Map<String, dynamic>>.from(
         _state.activeExpeditions.map((e) => Map<String, dynamic>.from(e)));
     
+    // Preserve highest Kardashev ever for diminishing returns calculation
+    final preservedHighestKardashev = _state.highestKardashevEver;
+    
     // Preserve legendary expedition data - these should continue running during prestige
     final preservedActiveLegendary = _state.activeLegendaryExpedition != null 
         ? Map<String, dynamic>.from(_state.activeLegendaryExpedition!) 
@@ -1913,6 +1968,8 @@ class GameProvider extends ChangeNotifier {
       activeLegendaryExpedition: preservedActiveLegendary,
       completedLegendaryExpeditions: preservedCompletedLegendary,
       legendaryExpeditionCooldowns: preservedLegendaryCooldowns,
+      // Preserve highest K for diminishing returns on repeated low-K prestiges
+      highestKardashevEver: preservedHighestKardashev,
     );
     
     // Clear any pending achievement notifications to prevent stale popups
@@ -1956,6 +2013,22 @@ class GameProvider extends ChangeNotifier {
     final nextTierIndex = min(_state.prestigeTier + 1, prestigeTiers.length - 1);
     final tierName = prestigeTiers[nextTierIndex].name;
     
+    // Calculate diminishing returns info for UI display
+    final highestK = _state.highestKardashevEver;
+    final currentK = _state.kardashevLevel;
+    final hasDiminishing = highestK > 0 && currentK <= highestK;
+    
+    double diminishingMult = 1.0;
+    if (hasDiminishing) {
+      final progressRatio = currentK / highestK;
+      if (progressRatio <= 1.0) {
+        diminishingMult = 0.05 + (progressRatio * 0.15);
+      } else {
+        final excessRatio = progressRatio - 1.0;
+        diminishingMult = (0.20 + (excessRatio * 2.67)).clamp(0.20, 1.0);
+      }
+    }
+    
     return PrestigeInfo(
       darkEnergyReward: darkEnergyReward,
       productionBonusGain: bonusGain,
@@ -1963,6 +2036,9 @@ class GameProvider extends ChangeNotifier {
       totalProductionBonus: newBonus,
       tierName: tierName,
       requiredKardashev: 0.3,
+      hasDiminishingReturns: hasDiminishing,
+      diminishingMultiplier: diminishingMult,
+      highestKardashev: highestK,
     );
   }
   

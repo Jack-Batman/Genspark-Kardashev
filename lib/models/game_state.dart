@@ -196,6 +196,10 @@ class GameState extends HiveObject {
   @HiveField(57)
   List<Map<String, dynamic>> activeExpeditions;
   
+  // Prestige progression tracking - for diminishing returns on repeated low-K prestiges
+  @HiveField(58)
+  double highestKardashevEver; // Tracks highest K level ever achieved across all prestiges
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -255,6 +259,7 @@ class GameState extends HiveObject {
     List<String>? ownedCosmetics,
     this.lastMonthlyDMClaimed,
     List<Map<String, dynamic>>? activeExpeditions,
+    this.highestKardashevEver = 0.0,
   })  : generators = generators ?? {},
         activeExpeditions = activeExpeditions ?? [],
         ownedArtifactIds = ownedArtifactIds ?? [],
@@ -594,6 +599,7 @@ class GameState extends HiveObject {
     DateTime? lastMonthlyDMClaimed,
     double? darkEnergy,
     List<Map<String, dynamic>>? activeExpeditions,
+    double? highestKardashevEver,
   }) {
     return GameState(
       energy: energy ?? this.energy,
@@ -654,6 +660,7 @@ class GameState extends HiveObject {
       lastMonthlyDMClaimed: lastMonthlyDMClaimed ?? this.lastMonthlyDMClaimed,
       darkEnergy: darkEnergy ?? this.darkEnergy,
       activeExpeditions: activeExpeditions ?? List.from(this.activeExpeditions.map((e) => Map<String, dynamic>.from(e))),
+      highestKardashevEver: highestKardashevEver ?? this.highestKardashevEver,
     );
   }
   

@@ -451,21 +451,71 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
               ),
             ),
             const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: const Text(
-                'Each Dark Energy grants +10% Total Production Bonus',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white70,
-                  fontStyle: FontStyle.italic,
+            // Diminishing returns warning
+            if (nextPrestige.hasDiminishingReturns) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.withValues(alpha: 0.5)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber, color: Colors.orange, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          'REDUCED REWARDS',
+                          style: TextStyle(
+                            fontFamily: 'Orbitron',
+                            fontSize: 10,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'You\'ve reached K${nextPrestige.highestKardashev.toStringAsFixed(2)} before.\nProgress further to earn full rewards!',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange.withValues(alpha: 0.9),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '(${(nextPrestige.diminishingMultiplier * 100).toStringAsFixed(0)}% of normal rewards)',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: Colors.orange.withValues(alpha: 0.7),
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+            ] else ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'Each Dark Energy grants +10% Total Production Bonus',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white70,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
         actions: [

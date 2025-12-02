@@ -77,13 +77,14 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       activeExpeditions: (fields[57] as List?)
           ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
           ?.toList(),
+      highestKardashevEver: fields[58] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(58)
+      ..writeByte(59)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -199,7 +200,9 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(56)
       ..write(obj.darkEnergy)
       ..writeByte(57)
-      ..write(obj.activeExpeditions);
+      ..write(obj.activeExpeditions)
+      ..writeByte(58)
+      ..write(obj.highestKardashevEver);
   }
 
   @override

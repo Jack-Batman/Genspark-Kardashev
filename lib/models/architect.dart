@@ -61,7 +61,7 @@ class Architect {
 const List<Architect> eraIArchitects = [
   Architect(
     id: 'tesla',
-    name: 'Nikola Tesla',
+    name: 'Nikolai Teslov',
     title: 'The Lightning Master',
     description: 'Pioneer of alternating current and wireless energy transmission.',
     imageAsset: 'tesla',
@@ -74,7 +74,7 @@ const List<Architect> eraIArchitects = [
   ),
   Architect(
     id: 'einstein',
-    name: 'Albert Einstein',
+    name: 'Dr. Albrecht Einfeld',
     title: 'The Relativity Sage',
     description: 'Unlocked the secrets of mass-energy equivalence.',
     imageAsset: 'einstein',
@@ -87,7 +87,7 @@ const List<Architect> eraIArchitects = [
   ),
   Architect(
     id: 'curie',
-    name: 'Marie Curie',
+    name: 'Dr. Maria Curien',
     title: 'The Radiant Pioneer',
     description: 'Discovered radioactivity and pioneered nuclear science.',
     imageAsset: 'curie',
@@ -100,7 +100,7 @@ const List<Architect> eraIArchitects = [
   ),
   Architect(
     id: 'dyson',
-    name: 'Freeman Dyson',
+    name: 'Dr. Franklin Dysen',
     title: 'The Sphere Dreamer',
     description: 'Conceptualized megastructures to harness stellar energy.',
     imageAsset: 'dyson',
@@ -113,7 +113,7 @@ const List<Architect> eraIArchitects = [
   ),
   Architect(
     id: 'oppenheimer',
-    name: 'J.R. Oppenheimer',
+    name: 'Dr. J.R. Oppenfield',
     title: 'The Atom Splitter',
     description: 'Led the development of nuclear energy applications.',
     imageAsset: 'oppenheimer',
@@ -126,7 +126,7 @@ const List<Architect> eraIArchitects = [
   ),
   Architect(
     id: 'lovelace',
-    name: 'Ada Lovelace',
+    name: 'Lady Ada Lovell',
     title: 'The Algorithm Weaver',
     description: 'First computer programmer, optimizes energy distribution.',
     imageAsset: 'lovelace',
@@ -169,9 +169,9 @@ const List<Architect> eraIArchitects = [
 const List<Architect> eraIIArchitects = [
   Architect(
     id: 'dyson_ii',
-    name: 'Freeman Dyson II',
+    name: 'Franklin Dysen II',
     title: 'The Sphere Builder',
-    description: 'Evolved beyond theory to construct the first complete Dyson Sphere.',
+    description: 'Evolved beyond theory to construct the first complete stellar sphere.',
     imageAsset: 'dyson_ii',
     rarity: ArchitectRarity.legendary,
     passiveAbility: 'Dyson structures +50%',
@@ -182,7 +182,7 @@ const List<Architect> eraIIArchitects = [
   ),
   Architect(
     id: 'kardashev',
-    name: 'Nikolai Kardashev',
+    name: 'Dr. Nikolai Kardash',
     title: 'The Scale Maker',
     description: 'His vision guides civilizations to stellar mastery.',
     imageAsset: 'kardashev',
@@ -195,7 +195,7 @@ const List<Architect> eraIIArchitects = [
   ),
   Architect(
     id: 'sagan',
-    name: 'Carl Sagan',
+    name: 'Dr. Karl Saganov',
     title: 'The Cosmic Visionary',
     description: 'Inspired billions to look to the stars.',
     imageAsset: 'sagan',
@@ -208,7 +208,7 @@ const List<Architect> eraIIArchitects = [
   ),
   Architect(
     id: 'von_neumann',
-    name: 'John von Neumann',
+    name: 'Dr. Johann Neuman',
     title: 'The Self-Replicator',
     description: 'Pioneer of self-replicating machines and automation.',
     imageAsset: 'von_neumann',
@@ -221,7 +221,7 @@ const List<Architect> eraIIArchitects = [
   ),
   Architect(
     id: 'oberth',
-    name: 'Hermann Oberth',
+    name: 'Dr. Herman Oberlin',
     title: 'The Rocket Pioneer',
     description: 'Father of astronautics and space propulsion.',
     imageAsset: 'oberth',
@@ -234,7 +234,7 @@ const List<Architect> eraIIArchitects = [
   ),
   Architect(
     id: 'tsiolkovsky',
-    name: 'Konstantin Tsiolkovsky',
+    name: 'Dr. Konstantine Tsiolkov',
     title: 'The Space Prophet',
     description: 'Dreamed of humanity among the stars.',
     imageAsset: 'tsiolkovsky',
@@ -277,9 +277,9 @@ const List<Architect> eraIIArchitects = [
 const List<Architect> eraIIIArchitects = [
   Architect(
     id: 'hawking',
-    name: 'Stephen Hawking',
+    name: 'Dr. Stefan Hawkins',
     title: 'The Black Hole Whisperer',
-    description: 'Unlocked the secrets of Hawking radiation and singularities.',
+    description: 'Unlocked the secrets of singularity radiation and black holes.',
     imageAsset: 'hawking',
     rarity: ArchitectRarity.legendary,
     passiveAbility: 'Black hole energy +60%',
@@ -290,7 +290,7 @@ const List<Architect> eraIIIArchitects = [
   ),
   Architect(
     id: 'penrose',
-    name: 'Roger Penrose',
+    name: 'Dr. Roland Penrow',
     title: 'The Geometry Master',
     description: 'Proved black holes could be used as energy sources.',
     imageAsset: 'penrose',
@@ -303,7 +303,7 @@ const List<Architect> eraIIIArchitects = [
   ),
   Architect(
     id: 'thorne',
-    name: 'Kip Thorne',
+    name: 'Dr. Kiran Thornwell',
     title: 'The Wormhole Architect',
     description: 'Pioneer of traversable wormhole theory.',
     imageAsset: 'thorne',
@@ -316,7 +316,7 @@ const List<Architect> eraIIIArchitects = [
   ),
   Architect(
     id: 'chandrasekhar',
-    name: 'Subrahmanyan Chandrasekhar',
+    name: 'Dr. Subram Chandra',
     title: 'The Stellar Corpse Expert',
     description: 'Understood the ultimate fate of massive stars.',
     imageAsset: 'chandra',
@@ -329,7 +329,7 @@ const List<Architect> eraIIIArchitects = [
   ),
   Architect(
     id: 'vera_rubin',
-    name: 'Vera Rubin',
+    name: 'Dr. Vera Ruben',
     title: 'The Dark Matter Seer',
     description: 'Discovered the influence of dark matter on galaxies.',
     imageAsset: 'rubin',
@@ -342,7 +342,7 @@ const List<Architect> eraIIIArchitects = [
   ),
   Architect(
     id: 'jocelyn_bell',
-    name: 'Jocelyn Bell Burnell',
+    name: 'Dr. Joceline Burnette',
     title: 'The Pulsar Finder',
     description: 'Discovered the first pulsars, opening new energy frontiers.',
     imageAsset: 'bell',

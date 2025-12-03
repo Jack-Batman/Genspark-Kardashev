@@ -104,7 +104,10 @@ class _ArtifactCollectionWidgetState extends State<ArtifactCollectionWidget>
   Widget _buildHeader(EraConfig eraConfig, int total, int owned) {
     final completion = total > 0 ? (owned / total * 100) : 0;
     
-    return Container(
+    return Column(
+      children: [
+        // Main stats header
+        Container(
       margin: const EdgeInsets.all(12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -195,6 +198,90 @@ class _ArtifactCollectionWidgetState extends State<ArtifactCollectionWidget>
           ),
         ],
       ),
+    ),
+        
+        // How to Get Artifacts info panel
+        _buildHowToGetArtifactsPanel(eraConfig),
+      ],
+    );
+  }
+  
+  Widget _buildHowToGetArtifactsPanel(EraConfig eraConfig) {
+    return GestureDetector(
+      onTap: () => _showArtifactGuideDialog(context, eraConfig),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.purple.withValues(alpha: 0.15),
+              Colors.blue.withValues(alpha: 0.15),
+            ],
+          ),
+          border: Border.all(
+            color: Colors.purple.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.purple.withValues(alpha: 0.2),
+              ),
+              child: const Icon(
+                Icons.help_outline,
+                color: Colors.purpleAccent,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'HOW TO GET ARTIFACTS',
+                    style: TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purpleAccent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Tap to learn about artifact sources and drop rates',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white.withValues(alpha: 0.4),
+              size: 14,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showArtifactGuideDialog(BuildContext context, EraConfig eraConfig) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _ArtifactGuideSheet(eraConfig: eraConfig),
     );
   }
   
@@ -650,56 +737,560 @@ class _ArtifactDetailSheet extends StatelessWidget {
                 
                 const SizedBox(height: 16),
                 
-                // Status
+                // Status and acquisition info
                 if (isOwned)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.green, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'In your collection',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.green,
-                        ),
-                      ),
-                    ],
-                  )
-                else
-                  Column(
-                    children: [
-                      Icon(
-                        Icons.help_outline,
-                        color: Colors.white.withValues(alpha: 0.4),
-                        size: 20,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Not yet discovered',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.white.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      if (artifact.sourceExpedition != null) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          'Found in legendary expeditions',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.purple.withValues(alpha: 0.7),
-                          ),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.green.withValues(alpha: 0.1),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 24),
+                        const SizedBox(width: 12),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'IN YOUR COLLECTION',
+                              style: TextStyle(
+                                fontFamily: 'Orbitron',
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            Text(
+                              'Bonus active: ${artifact.bonusDisplay}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.green.withValues(alpha: 0.8),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ],
-                  ),
+                    ),
+                  )
+                else
+                  _buildAcquisitionInfoBox(artifact, color),
               ],
             ),
           ),
           
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildAcquisitionInfoBox(Artifact artifact, Color color) {
+    // Determine acquisition method based on artifact properties
+    final hasSourceExpedition = artifact.sourceExpedition != null;
+    final isLegendary = artifact.rarity == ArtifactRarity.legendary;
+    final isMythic = artifact.rarity == ArtifactRarity.mythic;
+    final isEpic = artifact.rarity == ArtifactRarity.epic;
+    
+    String sourceTitle;
+    String sourceDescription;
+    IconData sourceIcon;
+    Color sourceColor;
+    String dropInfo;
+    
+    if (hasSourceExpedition) {
+      // Specific legendary expedition drop
+      sourceTitle = 'LEGENDARY EXPEDITION DROP';
+      sourceDescription = _getExpeditionName(artifact.sourceExpedition!);
+      sourceIcon = Icons.military_tech;
+      sourceColor = Colors.orange;
+      dropInfo = 'Guaranteed drop on first completion';
+    } else if (isMythic) {
+      sourceTitle = 'MYTHIC EXPEDITION DROP';
+      sourceDescription = 'Complete rare boss encounters';
+      sourceIcon = Icons.star;
+      sourceColor = Colors.red;
+      dropInfo = '1% chance from legendary expeditions';
+    } else if (isLegendary) {
+      sourceTitle = 'EXPEDITION DROP';
+      sourceDescription = 'Complete expeditions in Era ${['I', 'II', 'III', 'IV'][artifact.requiredEra]}';
+      sourceIcon = Icons.rocket_launch;
+      sourceColor = Colors.orange;
+      dropInfo = '4% drop rate from expeditions';
+    } else if (isEpic) {
+      sourceTitle = 'EXPEDITION DROP';
+      sourceDescription = 'Complete expeditions in Era ${['I', 'II', 'III', 'IV'][artifact.requiredEra]}';
+      sourceIcon = Icons.rocket_launch;
+      sourceColor = Colors.purple;
+      dropInfo = '10% drop rate from expeditions';
+    } else {
+      // Common, uncommon, rare
+      sourceTitle = 'EXPEDITION DROP';
+      sourceDescription = 'Complete any expedition in Era ${['I', 'II', 'III', 'IV'][artifact.requiredEra]}+';
+      sourceIcon = Icons.rocket_launch;
+      sourceColor = artifact.rarity.color;
+      dropInfo = '${(artifact.rarity.dropChance * 100).toInt()}% drop rate from expeditions';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            sourceColor.withValues(alpha: 0.15),
+            sourceColor.withValues(alpha: 0.05),
+          ],
+        ),
+        border: Border.all(color: sourceColor.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: sourceColor.withValues(alpha: 0.2),
+                ),
+                child: Icon(sourceIcon, color: sourceColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sourceTitle,
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: sourceColor,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      sourceDescription,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white.withValues(alpha: 0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white.withValues(alpha: 0.05),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.info_outline, size: 14, color: Colors.white.withValues(alpha: 0.6)),
+                const SizedBox(width: 6),
+                Text(
+                  dropInfo,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _getExpeditionName(String expeditionId) {
+    // Map expedition IDs to display names
+    switch (expeditionId) {
+      case 'leg_primordial_engine':
+        return 'The Primordial Engine (Era I)';
+      case 'leg_stellar_leviathan':
+        return 'Hunt for the Stellar Leviathan (Era II)';
+      case 'leg_black_hole_heart':
+        return 'Heart of the Black Hole (Era III)';
+      case 'leg_omega_confrontation':
+        return 'The Omega Confrontation (Era IV)';
+      case 'exp_sagittarius_approach':
+        return 'Sagittarius Expedition (Era III)';
+      default:
+        return 'Legendary Expedition';
+    }
+  }
+}
+
+/// Artifact acquisition guide sheet
+class _ArtifactGuideSheet extends StatelessWidget {
+  final EraConfig eraConfig;
+  
+  const _ArtifactGuideSheet({required this.eraConfig});
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.75,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.95),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border.all(
+          color: Colors.purple.withValues(alpha: 0.5),
+          width: 2,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Handle
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(2),
+              color: Colors.purple.withValues(alpha: 0.5),
+            ),
+          ),
+          
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.purple.withValues(alpha: 0.5),
+                        Colors.blue.withValues(alpha: 0.5),
+                      ],
+                    ),
+                  ),
+                  child: const Text('📖', style: TextStyle(fontSize: 24)),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ARTIFACT GUIDE',
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'How to discover rare artifacts',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.white.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          Divider(color: Colors.white.withValues(alpha: 0.1)),
+          
+          // Content
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Main acquisition method
+                _buildGuideSection(
+                  icon: Icons.rocket_launch,
+                  iconColor: Colors.blue,
+                  title: 'COMPLETE EXPEDITIONS',
+                  description: 'Artifacts drop randomly from successful expeditions. '
+                      'The rarer the artifact, the lower the drop chance.',
+                  children: [
+                    _buildDropRateRow('Common', '40%', Colors.grey),
+                    _buildDropRateRow('Uncommon', '30%', Colors.green),
+                    _buildDropRateRow('Rare', '15%', Colors.blue),
+                    _buildDropRateRow('Epic', '10%', Colors.purple),
+                    _buildDropRateRow('Legendary', '4%', Colors.orange),
+                    _buildDropRateRow('Mythic', '1%', Colors.red),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Legendary expeditions
+                _buildGuideSection(
+                  icon: Icons.military_tech,
+                  iconColor: Colors.orange,
+                  title: 'LEGENDARY EXPEDITIONS',
+                  description: 'Some artifacts are GUARANTEED drops from specific legendary expeditions. '
+                      'Complete the multi-stage legendary expeditions to unlock these powerful artifacts.',
+                  children: [
+                    _buildExpeditionArtifactRow('The Primordial Engine', 'Primordial Spark', 'ERA I'),
+                    _buildExpeditionArtifactRow('Hunt for Stellar Leviathan', 'Leviathan Scale', 'ERA II'),
+                    _buildExpeditionArtifactRow('Heart of the Black Hole', 'Singularity Heart', 'ERA III'),
+                    _buildExpeditionArtifactRow('The Omega Confrontation', 'Omega Fragment', 'ERA IV'),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Tips
+                _buildGuideSection(
+                  icon: Icons.lightbulb_outline,
+                  iconColor: Colors.amber,
+                  title: 'TIPS FOR COLLECTORS',
+                  description: '',
+                  children: [
+                    _buildTipRow('🎯', 'Use preferred architects on expeditions for +20% success bonus'),
+                    _buildTipRow('⭐', 'Higher era expeditions can drop artifacts from that era AND previous eras'),
+                    _buildTipRow('🔄', 'Artifacts persist through prestige - never lost!'),
+                    _buildTipRow('📈', 'Owned artifact bonuses stack and boost your production'),
+                    _buildTipRow('🏆', 'Complete legendary expeditions for guaranteed rare artifacts'),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Artifact bonuses explanation
+                _buildGuideSection(
+                  icon: Icons.auto_awesome,
+                  iconColor: Colors.cyan,
+                  title: 'ARTIFACT BONUSES',
+                  description: 'Each artifact provides a permanent bonus once discovered. '
+                      'Bonuses are automatically applied and stack with other modifiers.',
+                  children: [],
+                ),
+                
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          
+          // Close button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple.withValues(alpha: 0.3),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.purple.withValues(alpha: 0.5)),
+                  ),
+                ),
+                child: Text(
+                  'GOT IT!',
+                  style: TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildGuideSection({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    required String description,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: iconColor.withValues(alpha: 0.08),
+        border: Border.all(color: iconColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: iconColor.withValues(alpha: 0.2),
+                ),
+                child: Icon(icon, color: iconColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: iconColor,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
+          ),
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withValues(alpha: 0.8),
+                height: 1.4,
+              ),
+            ),
+          ],
+          if (children.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...children,
+          ],
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildDropRateRow(String rarity, String rate, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: color,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              rarity,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: color,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.2),
+            ),
+            child: Text(
+              rate,
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildExpeditionArtifactRow(String expedition, String artifact, String era) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: Colors.orange.withValues(alpha: 0.2),
+            ),
+            child: Text(
+              era,
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 8,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  expedition,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+                Text(
+                  '→ $artifact',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.orange.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.star,
+            size: 14,
+            color: Colors.orange.withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildTipRow(String emoji, String tip) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              tip,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
+            ),
+          ),
         ],
       ),
     );

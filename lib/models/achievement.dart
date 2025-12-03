@@ -148,7 +148,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'prod_6', name: 'Petawatt', description: 'Earn 1 quadrillion total energy',
     icon: '💎', category: AchievementCategory.production, rarity: AchievementRarity.diamond,
-    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.totalEnergy, targetValue: 1e15),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.totalEnergy, targetValue: 1e15),
   ),
   
   // Production per second (higher thresholds)
@@ -175,7 +175,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'eps_5', name: 'Tsunami', description: 'Reach 10 million energy per second',
     icon: '🌀', category: AchievementCategory.production, rarity: AchievementRarity.diamond,
-    darkMatterReward: 250, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 1e7),
+    darkMatterReward: 75, condition: AchievementCondition(type: ConditionType.energyPerSecond, targetValue: 1e7),
   ),
   
   // ═══════════════════════════════════════════════════════════════
@@ -209,7 +209,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'gen_6', name: 'Galactic Conglomerate', description: 'Own 500 total generators',
     icon: '🌌', category: AchievementCategory.generators, rarity: AchievementRarity.diamond,
-    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 500),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.totalGenerators, targetValue: 500),
   ),
   
   // Specific generators (higher thresholds)
@@ -270,29 +270,29 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'kard_20', name: 'Type II Civilization', description: 'Reach Kardashev 2.0',
     icon: '⭐', category: AchievementCategory.progression, rarity: AchievementRarity.diamond,
-    darkMatterReward: 1000, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 2.0),
+    darkMatterReward: 200, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 2.0),
   ),
   Achievement(
     id: 'kard_30', name: 'Type III Civilization', description: 'Reach Kardashev 3.0',
     icon: '🌌', category: AchievementCategory.progression, rarity: AchievementRarity.diamond,
-    darkMatterReward: 10000, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 3.0),
+    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.kardashevLevel, targetValue: 3.0),
   ),
   
   // Era unlocks
   Achievement(
     id: 'era_2', name: 'Stellar Dawn', description: 'Unlock the Stellar Era',
     icon: '☀️', category: AchievementCategory.progression, rarity: AchievementRarity.gold,
-    darkMatterReward: 150, condition: AchievementCondition(type: ConditionType.eraUnlocked, targetValue: 1),
+    darkMatterReward: 50, condition: AchievementCondition(type: ConditionType.eraUnlocked, targetValue: 1),
   ),
   Achievement(
     id: 'era_3', name: 'Galactic Awakening', description: 'Unlock the Galactic Era',
     icon: '🌌', category: AchievementCategory.progression, rarity: AchievementRarity.diamond,
-    darkMatterReward: 1500, condition: AchievementCondition(type: ConditionType.eraUnlocked, targetValue: 2),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.eraUnlocked, targetValue: 2),
   ),
   Achievement(
     id: 'era_4', name: 'Universal Consciousness', description: 'Unlock the Universal Era',
     icon: '✨', category: AchievementCategory.progression, rarity: AchievementRarity.diamond,
-    darkMatterReward: 15000, condition: AchievementCondition(type: ConditionType.eraUnlocked, targetValue: 3),
+    darkMatterReward: 200, condition: AchievementCondition(type: ConditionType.eraUnlocked, targetValue: 3),
   ),
   
   // ═══════════════════════════════════════════════════════════════
@@ -321,7 +321,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'tap_100000', name: 'Tap Legend', description: 'Tap 100,000 times',
     icon: '🏆', category: AchievementCategory.special, rarity: AchievementRarity.diamond,
-    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 100000),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.totalTaps, targetValue: 100000),
   ),
   
   // ═══════════════════════════════════════════════════════════════
@@ -350,7 +350,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'research_50', name: 'Research Director', description: 'Complete 50 researches',
     icon: '🎓', category: AchievementCategory.research, rarity: AchievementRarity.diamond,
-    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.researchCompleted, targetValue: 50),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.researchCompleted, targetValue: 50),
   ),
   
   // ═══════════════════════════════════════════════════════════════
@@ -369,12 +369,12 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'prestige_10', name: 'Veteran', description: 'Prestige 10 times',
     icon: '⭐', category: AchievementCategory.prestige, rarity: AchievementRarity.gold,
-    darkMatterReward: 1000, condition: AchievementCondition(type: ConditionType.prestigeCount, targetValue: 10),
+    darkMatterReward: 150, condition: AchievementCondition(type: ConditionType.prestigeCount, targetValue: 10),
   ),
   Achievement(
     id: 'prestige_25', name: 'Eternal', description: 'Prestige 25 times',
     icon: '♾️', category: AchievementCategory.prestige, rarity: AchievementRarity.diamond,
-    darkMatterReward: 5000, condition: AchievementCondition(type: ConditionType.prestigeCount, targetValue: 25),
+    darkMatterReward: 400, condition: AchievementCondition(type: ConditionType.prestigeCount, targetValue: 25),
   ),
   
   // Dark Matter
@@ -386,12 +386,12 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'dm_1000', name: 'Dark Hoarder', description: 'Accumulate 1,000 Dark Matter',
     icon: '🌑', category: AchievementCategory.prestige, rarity: AchievementRarity.gold,
-    darkMatterReward: 250, condition: AchievementCondition(type: ConditionType.darkMatter, targetValue: 1000),
+    darkMatterReward: 50, condition: AchievementCondition(type: ConditionType.darkMatter, targetValue: 1000),
   ),
   Achievement(
     id: 'dm_10000', name: 'Dark Lord', description: 'Accumulate 10,000 Dark Matter',
     icon: '🕳️', category: AchievementCategory.prestige, rarity: AchievementRarity.diamond,
-    darkMatterReward: 2500, condition: AchievementCondition(type: ConditionType.darkMatter, targetValue: 10000),
+    darkMatterReward: 150, condition: AchievementCondition(type: ConditionType.darkMatter, targetValue: 10000),
   ),
   
   // ═══════════════════════════════════════════════════════════════
@@ -410,7 +410,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'playtime_100h', name: 'Devoted', description: 'Play for 100 hours',
     icon: '🕐', category: AchievementCategory.special, rarity: AchievementRarity.gold,
-    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.playTime, targetValue: 360000),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.playTime, targetValue: 360000),
   ),
   
   // Architect
@@ -427,7 +427,7 @@ const List<Achievement> allAchievements = [
   Achievement(
     id: 'architect_all', name: 'Full Roster', description: 'Own all Era I Architects',
     icon: '🏆', category: AchievementCategory.special, rarity: AchievementRarity.diamond,
-    darkMatterReward: 500, condition: AchievementCondition(type: ConditionType.architectOwned, targetValue: 8),
+    darkMatterReward: 100, condition: AchievementCondition(type: ConditionType.architectOwned, targetValue: 8),
   ),
 ];
 

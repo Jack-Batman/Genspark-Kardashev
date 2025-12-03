@@ -446,8 +446,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 25,
-            description: '+25 Dark Matter',
+            amount: 5,
+            description: '+5 Dark Matter',
           ),
         ],
         boss: BossType.cosmicGuardian,
@@ -467,8 +467,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 75,
-            description: '+75 Dark Matter',
+            amount: 15,
+            description: '+15 Dark Matter',
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.productionBoost,
@@ -483,8 +483,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
     completionRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 200,
-        description: '+200 Dark Matter Bonus',
+        amount: 40,
+        description: '+40 Dark Matter Bonus',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.productionBoost,
@@ -534,8 +534,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 100,
-            description: '+100 Dark Matter',
+            amount: 15,
+            description: '+15 Dark Matter',
           ),
         ],
         boss: BossType.cosmicGuardian,
@@ -555,8 +555,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 250,
-            description: '+250 Dark Matter',
+            amount: 35,
+            description: '+35 Dark Matter',
           ),
         ],
         boss: BossType.voidLeviathan,
@@ -585,8 +585,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
     completionRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 500,
-        description: '+500 Dark Matter Bonus',
+        amount: 75,
+        description: '+75 Dark Matter Bonus',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.architectXP,
@@ -635,8 +635,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 300,
-            description: '+300 Dark Matter',
+            amount: 25,
+            description: '+25 Dark Matter',
           ),
         ],
         boss: BossType.darkMatterEntity,
@@ -656,8 +656,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 500,
-            description: '+500 Dark Matter',
+            amount: 40,
+            description: '+40 Dark Matter',
           ),
         ],
         boss: BossType.temporalAnomaly,
@@ -677,8 +677,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 1000,
-            description: '+1000 Dark Matter',
+            amount: 60,
+            description: '+60 Dark Matter',
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.productionBoost,
@@ -693,8 +693,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
     completionRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 2000,
-        description: '+2000 Dark Matter Bonus',
+        amount: 125,
+        description: '+125 Dark Matter Bonus',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.productionBoost,
@@ -735,8 +735,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 500,
-            description: '+500 Dark Matter',
+            amount: 30,
+            description: '+30 Dark Matter',
           ),
         ],
       ),
@@ -754,8 +754,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 1000,
-            description: '+1000 Dark Matter',
+            amount: 45,
+            description: '+45 Dark Matter',
           ),
         ],
         boss: BossType.dimensionalRift,
@@ -775,8 +775,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 2500,
-            description: '+2500 Dark Matter',
+            amount: 60,
+            description: '+60 Dark Matter',
           ),
         ],
         boss: BossType.cosmicGuardian,
@@ -796,8 +796,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 5000,
-            description: '+5000 Dark Matter',
+            amount: 80,
+            description: '+80 Dark Matter',
           ),
         ],
         boss: BossType.voidLeviathan,
@@ -817,8 +817,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.darkMatter,
-            amount: 10000,
-            description: '+10000 Dark Matter',
+            amount: 100,
+            description: '+100 Dark Matter',
           ),
           ExpeditionReward(
             type: ExpeditionRewardType.productionBoost,
@@ -833,8 +833,8 @@ const List<LegendaryExpedition> legendaryExpeditions = [
     completionRewards: [
       ExpeditionReward(
         type: ExpeditionRewardType.darkMatter,
-        amount: 25000,
-        description: '+25000 Dark Matter Bonus',
+        amount: 200,
+        description: '+200 Dark Matter Bonus',
       ),
       ExpeditionReward(
         type: ExpeditionRewardType.productionBoost,

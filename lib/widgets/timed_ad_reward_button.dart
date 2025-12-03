@@ -157,8 +157,8 @@ class _TimedAdRewardButtonState extends State<TimedAdRewardButton>
         );
       } else {
         // Award Dark Matter (scaled relative to energy)
-        // Dark Matter is more valuable, so give less
-        final darkMatterReward = (fiveMinutesEnergy / 10000).clamp(1.0, 100.0);
+        // Dark Matter is more valuable, so give less - max 20 DM to encourage IAP
+        final darkMatterReward = (fiveMinutesEnergy / 10000).clamp(1.0, 20.0);
         widget.gameProvider.addDarkMatter(darkMatterReward);
         _showRewardNotification(
           'Dark Matter Boost!',
@@ -193,7 +193,7 @@ class _TimedAdRewardButtonState extends State<TimedAdRewardButton>
   Future<TimedRewardType?> _showRewardSelectionDialog() async {
     final energyPerSecond = widget.gameProvider.state.energyPerSecond;
     final fiveMinutesEnergy = energyPerSecond * 5 * 60;
-    final darkMatterReward = (fiveMinutesEnergy / 10000).clamp(1.0, 100.0);
+    final darkMatterReward = (fiveMinutesEnergy / 10000).clamp(1.0, 20.0);
     final eraConfig = widget.gameProvider.state.eraConfig;
     
     return showDialog<TimedRewardType>(

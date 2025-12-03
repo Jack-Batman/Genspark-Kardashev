@@ -60,12 +60,6 @@ const List<TutorialStep> tutorialSteps = [
     highlightArea: 'stats',
   ),
   TutorialStep(
-    title: 'ENTROPY Assistant',
-    description: 'Tap the robot in the corner for helpful tips and guidance as you progress.',
-    icon: '🤖',
-    highlightArea: 'entropy',
-  ),
-  TutorialStep(
     title: 'Ready to Begin!',
     description: 'Build your first generator and start your journey to becoming a Type IV civilization!',
     icon: '🎮',

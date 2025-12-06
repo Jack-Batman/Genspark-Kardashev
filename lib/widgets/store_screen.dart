@@ -34,7 +34,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _dealsService.initialize();
   }
   
@@ -175,6 +175,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         ),
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
           indicatorColor: AppColors.goldAccent,
           labelColor: AppColors.goldLight,
           unselectedLabelColor: AppColors.textSecondary,
@@ -185,6 +186,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           ),
           tabs: const [
             Tab(text: 'DARK MATTER'),
+            Tab(text: 'BOOSTS'),
             Tab(text: 'MEMBERSHIP'),
             Tab(text: 'SPECIALS'),
             Tab(text: 'COSMETICS'),
@@ -195,6 +197,7 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         controller: _tabController,
         children: [
           _buildDarkMatterTab(),
+          _buildBoostsTab(),
           _buildMembershipTab(),
           _buildSpecialsTab(),
           _buildCosmeticsTab(),
@@ -211,8 +214,8 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Current DM Balance
-          _buildBalanceCard(),
+          // Current DM Balance with integrated Quick Actions
+          _buildEnhancedBalanceCard(),
           
           const SizedBox(height: 16),
           
@@ -301,6 +304,59 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
     }
   }
   
+  Widget _buildBoostsTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Balance Card (Crucial for buying boosts)
+          _buildEnhancedBalanceCard(),
+          
+          const SizedBox(height: 24),
+          
+          const Text(
+            'PRODUCTION BOOSTS',
+            style: TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.info,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          // Quick Time Warps Section (The one-tap grid)
+          _buildQuickTimeWarpsSection(),
+          
+          const SizedBox(height: 24),
+          
+          // Standard cards for clarity
+          const Text(
+            'STANDARD TIME WARPS',
+            style: TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          
+          _buildTimeWarpCard(1, 100),
+          const SizedBox(height: 12),
+          _buildTimeWarpCard(4, 300),
+          const SizedBox(height: 12),
+          _buildTimeWarpCard(8, 500),
+          const SizedBox(height: 12),
+          _buildTimeWarpCard(24, 1200),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMembershipTab() {
     final isMember = _membershipService.isCosmicMember;
     final comparison = _membershipService.getMembershipComparison();
@@ -565,35 +621,22 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           
           const SizedBox(height: 12),
           
-          // Free Time Warp (Ad)
-          _buildFreeTimeWarpCard(),
-          
-          const SizedBox(height: 12),
-          
           // Free Daily DM (Ad)
           _buildFreeDarkMatterCard(),
           
           const SizedBox(height: 24),
           
-          // Time Warp Purchase
-          const Text(
-            'TIME WARPS',
-            style: TextStyle(
-              fontFamily: 'Orbitron',
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-              letterSpacing: 2,
+          // Note about boosts
+          Center(
+            child: TextButton.icon(
+              onPressed: () => _tabController.animateTo(1), // Switch to Boosts tab
+              icon: const Icon(Icons.fast_forward, color: AppColors.info),
+              label: const Text(
+                'Looking for Time Warps? Check the BOOSTS tab!',
+                style: TextStyle(color: AppColors.info),
+              ),
             ),
           ),
-          
-          const SizedBox(height: 12),
-          
-          _buildTimeWarpCard(1, 100),
-          const SizedBox(height: 8),
-          _buildTimeWarpCard(4, 300),
-          const SizedBox(height: 8),
-          _buildTimeWarpCard(8, 500),
         ],
       ),
     );
@@ -975,6 +1018,406 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         ],
       ),
     );
+  }
+  
+  /// Enhanced balance card with production rate display
+  Widget _buildEnhancedBalanceCard() {
+    final dm = widget.gameProvider.state.darkMatter;
+    final eps = widget.gameProvider.state.energyPerSecond;
+    
+    return GlassContainer(
+      padding: const EdgeInsets.all(16),
+      borderColor: Colors.purple.withValues(alpha: 0.4),
+      showGlow: true,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.purple.withValues(alpha: 0.4),
+                      Colors.purpleAccent.withValues(alpha: 0.2),
+                    ],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purpleAccent.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.dark_mode,
+                  color: Colors.purpleAccent,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'DARK MATTER BALANCE',
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${dm.toStringAsFixed(0)} DM',
+                      style: const TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purpleAccent,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // Production rate info for Time Warp context
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              color: Colors.white.withValues(alpha: 0.05),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.bolt, color: AppColors.goldAccent, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  'Production: ${GameProvider.formatNumber(eps)}/s',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.7),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '•',
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.3)),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  '1hr = ${GameProvider.formatNumber(eps * 3600)}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.info.withValues(alpha: 0.9),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// ⚡ QUICK TIME WARPS - The main optimization for fewer clicks
+  Widget _buildQuickTimeWarpsSection() {
+    final dm = widget.gameProvider.state.darkMatter;
+    final eps = widget.gameProvider.state.energyPerSecond;
+    final canWatch = _adService.canWatchAd(AdPlacement.freeTimeWarp);
+    final remaining = _adService.getRemainingWatches(AdPlacement.freeTimeWarp);
+    
+    return GlassContainer(
+      padding: const EdgeInsets.all(16),
+      borderColor: AppColors.info.withValues(alpha: 0.4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Header
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: AppColors.info.withValues(alpha: 0.2),
+                ),
+                child: const Icon(
+                  Icons.fast_forward,
+                  color: AppColors.info,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '⚡ QUICK TIME WARPS',
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    Text(
+                      'Instant production boost - One tap!',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // Free Time Warp (Ad) - Most prominent
+          if (canWatch)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: _buildQuickWarpButton(
+                label: 'FREE',
+                hours: 1,
+                cost: 0,
+                isFree: true,
+                energyGain: eps * 3600,
+                isAvailable: true,
+                badge: '📺 Watch Ad • $remaining/2 left',
+                onTap: () async {
+                  final result = await _adService.showRewardedAd(AdPlacement.freeTimeWarp);
+                  if (result.success) {
+                    widget.gameProvider.activateFreeTimeWarp(hours: 1);
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('⚡ Free 1-hour Time Warp activated!'),
+                          backgroundColor: AppColors.success,
+                        ),
+                      );
+                      setState(() {});
+                    }
+                  }
+                },
+              ),
+            ),
+          
+          // Quick Warp Buttons Grid - One tap to activate
+          Row(
+            children: [
+              Expanded(
+                child: _buildQuickWarpButton(
+                  label: '1 HOUR',
+                  hours: 1,
+                  cost: 100,
+                  energyGain: eps * 3600,
+                  isAvailable: dm >= 100,
+                  onTap: () => _activateTimeWarpQuick(1, 100),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildQuickWarpButton(
+                  label: '4 HOURS',
+                  hours: 4,
+                  cost: 300,
+                  energyGain: eps * 3600 * 4,
+                  isAvailable: dm >= 300,
+                  badge: 'POPULAR',
+                  onTap: () => _activateTimeWarpQuick(4, 300),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildQuickWarpButton(
+                  label: '8 HOURS',
+                  hours: 8,
+                  cost: 500,
+                  energyGain: eps * 3600 * 8,
+                  isAvailable: dm >= 500,
+                  badge: 'BEST VALUE',
+                  onTap: () => _activateTimeWarpQuick(8, 500),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Quick warp button widget - compact, one-tap design
+  Widget _buildQuickWarpButton({
+    required String label,
+    required int hours,
+    required int cost,
+    required double energyGain,
+    required bool isAvailable,
+    required VoidCallback onTap,
+    String? badge,
+    bool isFree = false,
+  }) {
+    final buttonColor = isFree 
+        ? AppColors.success 
+        : (isAvailable ? Colors.purpleAccent : AppColors.surfaceLight);
+    
+    return GestureDetector(
+      onTap: isAvailable ? onTap : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: isAvailable 
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isFree 
+                      ? [AppColors.success.withValues(alpha: 0.3), AppColors.success.withValues(alpha: 0.1)]
+                      : [Colors.purple.withValues(alpha: 0.3), Colors.purpleAccent.withValues(alpha: 0.1)],
+                )
+              : null,
+          color: isAvailable ? null : AppColors.surfaceDark,
+          border: Border.all(
+            color: isAvailable 
+                ? (isFree ? AppColors.success : Colors.purpleAccent).withValues(alpha: 0.5)
+                : Colors.white.withValues(alpha: 0.1),
+            width: isAvailable ? 2 : 1,
+          ),
+          boxShadow: isAvailable ? [
+            BoxShadow(
+              color: (isFree ? AppColors.success : Colors.purpleAccent).withValues(alpha: 0.2),
+              blurRadius: 8,
+              spreadRadius: 0,
+            ),
+          ] : null,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Badge
+            if (badge != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: isFree ? AppColors.success : AppColors.goldAccent,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    fontSize: isFree ? 8 : 7,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            
+            // Icon
+            Icon(
+              isFree ? Icons.play_circle_filled : Icons.fast_forward,
+              color: isAvailable ? buttonColor : AppColors.textSecondary,
+              size: isFree ? 28 : 24,
+            ),
+            const SizedBox(height: 4),
+            
+            // Label
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: isAvailable ? AppColors.textPrimary : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            
+            // Energy Gain
+            Text(
+              '+${GameProvider.formatNumber(energyGain)}',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: isAvailable ? AppColors.goldAccent : AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            
+            // Cost
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: isAvailable 
+                    ? (isFree ? AppColors.success : Colors.purpleAccent)
+                    : AppColors.surfaceLight,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!isFree) ...[
+                    const Icon(Icons.dark_mode, size: 10, color: Colors.white),
+                    const SizedBox(width: 3),
+                  ],
+                  Text(
+                    isFree ? 'FREE' : '$cost',
+                    style: const TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Quick Time Warp activation with instant feedback
+  void _activateTimeWarpQuick(int hours, int cost) {
+    if (widget.gameProvider.state.darkMatter < cost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Not enough Dark Matter! Need $cost DM'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    
+    final energyGain = widget.gameProvider.state.energyPerSecond * 3600 * hours;
+    
+    if (widget.gameProvider.activateTimeWarp(hours: hours)) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⚡ $hours-hour Time Warp! +${GameProvider.formatNumber(energyGain)} Energy'),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
   
   Widget _buildFreeDarkMatterCard() {

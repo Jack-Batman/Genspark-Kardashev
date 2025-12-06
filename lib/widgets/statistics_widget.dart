@@ -526,12 +526,19 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: eraConfig.primaryColor,
+              foregroundColor: Colors.white,
             ),
             onPressed: () {
               widget.gameProvider.prestige();
               Navigator.pop(context);
             },
-            child: const Text('PRESTIGE'),
+            child: const Text(
+              'PRESTIGE',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

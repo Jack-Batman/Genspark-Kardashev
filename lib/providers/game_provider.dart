@@ -2317,37 +2317,28 @@ class GameProvider extends ChangeNotifier {
     reward = max(reward, minReward);
     
     // ═══════════════════════════════════════════════════════════════
-    // DIMINISHING RETURNS: Penalize prestiging at same/lower K level
-    // Forces players to progress further to get meaningful rewards
+    // DIMINISHING RETURNS: Penalize prestiging at LOWER K level than previous best
+    // FIXED: Only apply when current K is LESS than highest K, not equal
+    // This ensures first-time players at new highs get full rewards
     // ═══════════════════════════════════════════════════════════════
     
     final highestK = _state.highestKardashevEver;
     final currentK = _state.kardashevLevel;
     
-    if (highestK > 0 && currentK <= highestK) {
+    // Only apply diminishing returns when strictly below previous best
+    if (highestK > 0 && currentK < highestK) {
       // Calculate how far below the highest K we are
-      // If at same K: multiplier = 0.2 (80% reduction)
-      // If slightly above: scales up to 1.0 (no reduction)
+      final progressRatio = currentK / highestK; // 0.0 to <1.0
       
-      final progressRatio = currentK / highestK; // 0.0 to 1.0
-      
-      // Harsh diminishing returns curve:
-      // - At 100% of highest K: 20% of normal reward
-      // - At 110% of highest K: 50% of normal reward  
-      // - At 120% of highest K: 80% of normal reward
-      // - At 130%+ of highest K: 100% of normal reward
+      // Diminishing returns curve for prestiging below previous best:
+      // - At 90% of highest K: ~18% of normal reward
+      // - At 80% of highest K: ~17% of normal reward
+      // - At 50% of highest K: ~13% of normal reward
       
       double diminishingMultiplier;
-      if (progressRatio <= 1.0) {
-        // At or below highest K - heavy penalty
-        // Use a curve that gives 20% at ratio=1.0, scaling down to 5% at ratio=0.5
-        diminishingMultiplier = 0.05 + (progressRatio * 0.15); // 5% to 20%
-      } else {
-        // Above highest K - reward scales back up
-        final excessRatio = progressRatio - 1.0; // How much above highest K
-        diminishingMultiplier = 0.20 + (excessRatio * 2.67); // 20% + scales to 100% at 130%
-        diminishingMultiplier = diminishingMultiplier.clamp(0.20, 1.0);
-      }
+      // Below highest K - apply penalty based on how far below
+      // Use a curve that gives ~20% at ratio=0.99, scaling down to 5% at ratio=0.5
+      diminishingMultiplier = 0.05 + (progressRatio * 0.15); // 5% to 20%
       
       reward = reward * diminishingMultiplier;
       
@@ -2512,19 +2503,20 @@ class GameProvider extends ChangeNotifier {
     final tierName = prestigeTiers[nextTierIndex].name;
     
     // Calculate diminishing returns info for UI display
+    // FIXED: Only show warning when current K is LESS than highest K achieved
+    // Previously showed warning when currentK == highestK, which was wrong
+    // on first playthrough (player reaches new high but sees "reduced rewards")
     final highestK = _state.highestKardashevEver;
     final currentK = _state.kardashevLevel;
-    final hasDiminishing = highestK > 0 && currentK <= highestK;
+    final hasDiminishing = highestK > 0 && currentK < highestK;
     
     double diminishingMult = 1.0;
     if (hasDiminishing) {
+      // Since hasDiminishing is only true when currentK < highestK,
+      // progressRatio will always be < 1.0
       final progressRatio = currentK / highestK;
-      if (progressRatio <= 1.0) {
-        diminishingMult = 0.05 + (progressRatio * 0.15);
-      } else {
-        final excessRatio = progressRatio - 1.0;
-        diminishingMult = (0.20 + (excessRatio * 2.67)).clamp(0.20, 1.0);
-      }
+      // Apply penalty based on how far below the previous best
+      diminishingMult = 0.05 + (progressRatio * 0.15); // 5% to 20%
     }
     
     return PrestigeInfo(

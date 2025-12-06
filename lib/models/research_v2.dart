@@ -94,7 +94,7 @@ class ResearchNode {
       case ResearchCategory.efficiency:
         return const Color(0xFF4FC3F7);
       case ResearchCategory.automation:
-        return const Color(0xFF81C784);
+        return const Color(0xFF7E57C2);
       case ResearchCategory.expansion:
         return const Color(0xFFFFB74D);
       case ResearchCategory.exotic:

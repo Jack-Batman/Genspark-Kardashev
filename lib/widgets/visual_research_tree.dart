@@ -903,7 +903,7 @@ class _VisualResearchTreeState extends State<VisualResearchTree>
         mainAxisSize: MainAxisSize.min,
         children: [
           _buildLegendItem('Efficiency', const Color(0xFF4FC3F7)),
-          _buildLegendItem('Automation', const Color(0xFF81C784)),
+          _buildLegendItem('Automation', const Color(0xFF7E57C2)),
           _buildLegendItem('Expansion', const Color(0xFFFFB74D)),
           _buildLegendItem('Exotic', const Color(0xFFBA68C8)),
         ],

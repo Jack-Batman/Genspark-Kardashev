@@ -416,162 +416,220 @@ class _AchievementsWidgetState extends State<AchievementsWidget> {
   }
 }
 
-/// Achievement notification popup
-class AchievementNotification extends StatelessWidget {
+/// Achievement notification popup with auto-dismiss
+class AchievementNotification extends StatefulWidget {
   final Achievement achievement;
   final VoidCallback onDismiss;
+  final Duration autoDismissDuration;
 
   const AchievementNotification({
     super.key,
     required this.achievement,
     required this.onDismiss,
+    this.autoDismissDuration = const Duration(seconds: 4),
   });
 
   @override
+  State<AchievementNotification> createState() => _AchievementNotificationState();
+}
+
+class _AchievementNotificationState extends State<AchievementNotification>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  bool _isDismissing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    ));
+
+    // Play entrance animation
+    _controller.forward();
+
+    // Auto-dismiss after duration
+    Future.delayed(widget.autoDismissDuration, () {
+      if (mounted && !_isDismissing) {
+        _dismissWithAnimation();
+      }
+    });
+  }
+
+  void _dismissWithAnimation() {
+    if (_isDismissing) return;
+    _isDismissing = true;
+    _controller.reverse().then((_) {
+      if (mounted) {
+        widget.onDismiss();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: GestureDetector(
-        onTap: onDismiss,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 24),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                achievement.rarityColor.withValues(alpha: 0.3),
-                Colors.black.withValues(alpha: 0.9),
-              ],
-            ),
-            border: Border.all(
-              color: achievement.rarityColor,
-              width: 2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: achievement.rarityColor.withValues(alpha: 0.5),
-                blurRadius: 20,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: achievement.rarityColor.withValues(alpha: 0.3),
-                      border: Border.all(
-                        color: achievement.rarityColor,
-                        width: 2,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        achievement.icon,
-                        style: const TextStyle(fontSize: 24),
-                      ),
-                    ),
+    return SlideTransition(
+      position: _slideAnimation,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Material(
+          color: Colors.transparent,
+          child: GestureDetector(
+            onTap: _dismissWithAnimation,
+            child: Container(
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    widget.achievement.rarityColor.withValues(alpha: 0.3),
+                    Colors.black.withValues(alpha: 0.9),
+                  ],
+                ),
+                border: Border.all(
+                  color: widget.achievement.rarityColor,
+                  width: 2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.achievement.rarityColor.withValues(alpha: 0.5),
+                    blurRadius: 20,
+                    spreadRadius: 2,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ACHIEVEMENT UNLOCKED!',
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: widget.achievement.rarityColor.withValues(alpha: 0.3),
+                          border: Border.all(
+                            color: widget.achievement.rarityColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: Center(
+                          child: Text(
+                            widget.achievement.icon,
+                            style: const TextStyle(fontSize: 24),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'ACHIEVEMENT UNLOCKED!',
+                              style: TextStyle(
+                                fontFamily: 'Orbitron',
+                                fontSize: 10,
+                                color: widget.achievement.rarityColor,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              widget.achievement.name,
+                              style: const TextStyle(
+                                fontFamily: 'Orbitron',
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              widget.achievement.description,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.white.withValues(alpha: 0.7),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          color: widget.achievement.rarityColor.withValues(alpha: 0.2),
+                        ),
+                        child: Text(
+                          widget.achievement.rarityName.toUpperCase(),
                           style: TextStyle(
                             fontFamily: 'Orbitron',
                             fontSize: 10,
-                            color: achievement.rarityColor,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          achievement.name,
-                          style: const TextStyle(
-                            fontFamily: 'Orbitron',
-                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                            color: widget.achievement.rarityColor,
                           ),
                         ),
-                        Text(
-                          achievement.description,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.white.withValues(alpha: 0.7),
+                      ),
+                      if (widget.achievement.energyReward > 0 || widget.achievement.darkMatterReward > 0) ...[
+                        const SizedBox(width: 12),
+                        if (widget.achievement.energyReward > 0)
+                          Text(
+                            '+${GameProvider.formatNumber(widget.achievement.energyReward)} ⚡',
+                            style: const TextStyle(
+                              fontFamily: 'Orbitron',
+                              fontSize: 11,
+                              color: Colors.amber,
+                            ),
                           ),
-                        ),
+                        if (widget.achievement.darkMatterReward > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 8),
+                            child: Text(
+                              '+${widget.achievement.darkMatterReward.toInt()} 🌑',
+                              style: TextStyle(
+                                fontFamily: 'Orbitron',
+                                fontSize: 11,
+                                color: Colors.purple.shade200,
+                              ),
+                            ),
+                          ),
                       ],
-                    ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: achievement.rarityColor.withValues(alpha: 0.2),
-                    ),
-                    child: Text(
-                      achievement.rarityName.toUpperCase(),
-                      style: TextStyle(
-                        fontFamily: 'Orbitron',
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: achievement.rarityColor,
-                      ),
-                    ),
-                  ),
-                  if (achievement.energyReward > 0 || achievement.darkMatterReward > 0) ...[
-                    const SizedBox(width: 12),
-                    if (achievement.energyReward > 0)
-                      Text(
-                        '+${GameProvider.formatNumber(achievement.energyReward)} ⚡',
-                        style: const TextStyle(
-                          fontFamily: 'Orbitron',
-                          fontSize: 11,
-                          color: Colors.amber,
-                        ),
-                      ),
-                    if (achievement.darkMatterReward > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Text(
-                          '+${achievement.darkMatterReward.toInt()} 🌑',
-                          style: TextStyle(
-                            fontFamily: 'Orbitron',
-                            fontSize: 11,
-                            color: Colors.purple.shade200,
-                          ),
-                        ),
-                      ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Tap to dismiss',
-                style: TextStyle(
-                  fontSize: 9,
-                  color: Colors.white.withValues(alpha: 0.4),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

@@ -333,6 +333,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
   Widget _buildTopHUD(GameProvider gameProvider) {
     final eraConfig = gameProvider.state.eraConfig;
+    final primaryColor = gameProvider.getThemePrimaryColor();
+    final accentColor = gameProvider.getThemeAccentColor();
     
     return Row(
       children: [
@@ -342,7 +344,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             value: gameProvider.state.energy,
             label: 'ENERGY',
             icon: Icons.bolt,
-            color: eraConfig.accentColor,
+            color: accentColor,
           ),
         ),
         const SizedBox(width: 12),
@@ -352,6 +354,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           level: gameProvider.state.kardashevLevel,
           era: gameProvider.state.currentEra,
           eraConfig: eraConfig,
+          themeColor: gameProvider.hasActiveTheme ? primaryColor : null,
         ),
         
         const SizedBox(width: 8),
@@ -370,7 +373,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   shape: BoxShape.circle,
                   color: Colors.black.withValues(alpha: 0.3),
                   border: Border.all(
-                    color: eraConfig.primaryColor.withValues(alpha: 0.3),
+                    color: primaryColor.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Icon(
@@ -381,7 +384,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               ),
             ),
             const SizedBox(height: 6),
-            // Market Icon
+            // Market Icon - Uses theme colors
             GestureDetector(
               onTap: () => _openStore(context, gameProvider),
               child: Container(
@@ -391,17 +394,17 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: [
-                      AppColors.goldAccent.withValues(alpha: 0.3),
-                      AppColors.goldDark.withValues(alpha: 0.2),
+                      primaryColor.withValues(alpha: 0.3),
+                      accentColor.withValues(alpha: 0.2),
                     ],
                   ),
                   border: Border.all(
-                    color: AppColors.goldAccent.withValues(alpha: 0.5),
+                    color: primaryColor.withValues(alpha: 0.5),
                   ),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.storefront,
-                  color: AppColors.goldLight,
+                  color: accentColor,
                   size: 18,
                 ),
               ),
@@ -842,25 +845,29 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildBottomNavigationBar(GameProvider gameProvider) {
-    final eraConfig = gameProvider.state.eraConfig;
+    // Use theme colors if active, otherwise fall back to era colors
+    final primaryColor = gameProvider.getThemePrimaryColor();
+    final accentColor = gameProvider.getThemeAccentColor();
     
     return GlassContainer(
       borderRadius: 0, // Full width bar
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 20), // Extra bottom padding for safe area
       margin: EdgeInsets.zero,
-      borderColor: Colors.white.withValues(alpha: 0.1),
+      borderColor: gameProvider.hasActiveTheme 
+          ? primaryColor.withValues(alpha: 0.2)
+          : Colors.white.withValues(alpha: 0.1),
       child: Row(
         children: [
           Expanded(
-            child: _buildTab(0, 'BUILD', Icons.construction, eraConfig, gameProvider: gameProvider),
+            child: _buildTab(0, 'BUILD', Icons.construction, primaryColor, accentColor, gameProvider: gameProvider),
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: _buildTab(1, 'RESEARCH', Icons.science, eraConfig, gameProvider: gameProvider),
+            child: _buildTab(1, 'RESEARCH', Icons.science, primaryColor, accentColor, gameProvider: gameProvider),
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: _buildTab(2, 'ARCHITECTS', Icons.people, eraConfig, gameProvider: gameProvider),
+            child: _buildTab(2, 'ARCHITECTS', Icons.people, primaryColor, accentColor, gameProvider: gameProvider),
           ),
           const SizedBox(width: 6),
           Expanded(
@@ -868,7 +875,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               3, 
               'GOALS', 
               Icons.emoji_events, 
-              eraConfig, 
+              primaryColor,
+              accentColor, 
               gameProvider: gameProvider,
               showBadge: (gameProvider.unclaimedAchievementCount + gameProvider.unclaimedChallengeCount) > 0,
               badgeCount: gameProvider.unclaimedAchievementCount + gameProvider.unclaimedChallengeCount,
@@ -876,14 +884,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: _buildTab(4, 'STATS', Icons.analytics, eraConfig, gameProvider: gameProvider, showPrestigeBadge: gameProvider.getNextPrestigeInfo() != null && gameProvider.state.kardashevLevel >= (gameProvider.getNextPrestigeInfo()?.requiredKardashev ?? 999)),
+            child: _buildTab(4, 'STATS', Icons.analytics, primaryColor, accentColor, gameProvider: gameProvider, showPrestigeBadge: gameProvider.getNextPrestigeInfo() != null && gameProvider.state.kardashevLevel >= (gameProvider.getNextPrestigeInfo()?.requiredKardashev ?? 999)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTab(int index, String label, IconData icon, EraConfig eraConfig, {GameProvider? gameProvider, bool showPrestigeBadge = false, bool showBadge = false, int badgeCount = 0}) {
+  Widget _buildTab(int index, String label, IconData icon, Color primaryColor, Color accentColor, {GameProvider? gameProvider, bool showPrestigeBadge = false, bool showBadge = false, int badgeCount = 0}) {
     final isSelected = _selectedTab == index && _isMenuOpen; // Only highlight if menu is open
     
     return GestureDetector(
@@ -907,12 +915,12 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.circular(12),
               color:
                   isSelected
-                      ? eraConfig.primaryColor.withValues(alpha: 0.2)
+                      ? primaryColor.withValues(alpha: 0.2)
                       : Colors.transparent,
               border: Border.all(
                 color:
                     isSelected
-                        ? eraConfig.primaryColor.withValues(alpha: 0.5)
+                        ? primaryColor.withValues(alpha: 0.5)
                         : Colors.transparent,
               ),
             ),
@@ -922,7 +930,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                 children: [
                   Icon(
                     icon,
-                    color: isSelected ? eraConfig.accentColor : Colors.white.withValues(alpha: 0.5),
+                    color: isSelected ? accentColor : Colors.white.withValues(alpha: 0.5),
                     size: 24, // Larger icon
                   ),
                   const SizedBox(height: 4),
@@ -933,7 +941,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       fontSize: 8,
                       fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                       color:
-                          isSelected ? eraConfig.accentColor : Colors.white.withValues(alpha: 0.5),
+                          isSelected ? accentColor : Colors.white.withValues(alpha: 0.5),
                       letterSpacing: 0.5,
                     ),
                     textAlign: TextAlign.center,
@@ -943,11 +951,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
             ),
           ),
           // Prestige notification badge
-          if (showPrestigeBadge)
+          if (showPrestigeBadge && gameProvider != null)
             Positioned(
               top: -2,
               right: 4,
-              child: _PrestigeBadge(eraConfig: eraConfig),
+              child: _PrestigeBadge(primaryColor: primaryColor, accentColor: accentColor),
             ),
           // Achievement badge with count
           if (showBadge && badgeCount > 0)
@@ -1001,13 +1009,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildExpandedMenu(GameProvider gameProvider) {
-    final eraConfig = gameProvider.state.eraConfig;
+    final primaryColor = gameProvider.getThemePrimaryColor();
+    final accentColor = gameProvider.getThemeAccentColor();
     
     return GlassContainer(
       borderRadius: 24,
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(horizontal: 16),
-      borderColor: eraConfig.primaryColor.withValues(alpha: 0.3),
+      borderColor: primaryColor.withValues(alpha: 0.3),
       child: Column(
         children: [
           // Header with close button
@@ -1020,7 +1029,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                   fontFamily: 'Orbitron',
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: eraConfig.accentColor,
+                  color: accentColor,
                   letterSpacing: 2,
                 ),
               ),
@@ -1147,9 +1156,10 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
 
 /// Pulsing prestige notification badge
 class _PrestigeBadge extends StatefulWidget {
-  final EraConfig eraConfig;
+  final Color primaryColor;
+  final Color accentColor;
   
-  const _PrestigeBadge({required this.eraConfig});
+  const _PrestigeBadge({required this.primaryColor, required this.accentColor});
 
   @override
   State<_PrestigeBadge> createState() => _PrestigeBadgeState();
@@ -1194,10 +1204,10 @@ class _PrestigeBadgeState extends State<_PrestigeBadge> with SingleTickerProvide
             height: 18,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: widget.eraConfig.accentColor,
+              color: widget.accentColor,
               boxShadow: [
                 BoxShadow(
-                  color: widget.eraConfig.accentColor.withValues(alpha: 0.6),
+                  color: widget.accentColor.withValues(alpha: 0.6),
                   blurRadius: _glowAnimation.value,
                   spreadRadius: 1,
                 ),

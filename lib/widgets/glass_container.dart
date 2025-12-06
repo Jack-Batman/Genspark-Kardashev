@@ -307,19 +307,21 @@ class KardashevIndicator extends StatelessWidget {
   final double level;
   final int era;
   final dynamic eraConfig; // EraConfig from era_data.dart
+  final Color? themeColor; // Optional theme color override
   
   const KardashevIndicator({
     super.key,
     required this.level,
     required this.era,
     this.eraConfig,
+    this.themeColor,
   });
   
   @override
   Widget build(BuildContext context) {
-    // Use era config colors if available, otherwise defaults
-    final primaryColor = eraConfig?.primaryColor ?? AppColors.goldAccent;
-    final accentColor = eraConfig?.accentColor ?? AppColors.goldLight;
+    // Use theme color if provided, otherwise era config, otherwise defaults
+    final primaryColor = themeColor ?? eraConfig?.primaryColor ?? AppColors.goldAccent;
+    final accentColor = themeColor ?? eraConfig?.accentColor ?? AppColors.goldLight;
     final subtitle = eraConfig?.subtitle ?? 'ERA ${era + 1}';
     
     // Calculate progress within current era (0.0 - 1.0)

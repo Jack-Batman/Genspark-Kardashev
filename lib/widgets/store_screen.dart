@@ -589,11 +589,11 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           
           const SizedBox(height: 12),
           
-          _buildTimeWarpCard(1, 20),
+          _buildTimeWarpCard(1, 100),
           const SizedBox(height: 8),
-          _buildTimeWarpCard(4, 60),
+          _buildTimeWarpCard(4, 300),
           const SizedBox(height: 8),
-          _buildTimeWarpCard(8, 100),
+          _buildTimeWarpCard(8, 500),
         ],
       ),
     );

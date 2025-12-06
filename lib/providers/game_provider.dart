@@ -1599,33 +1599,92 @@ class GameProvider extends ChangeNotifier {
     }
   }
   
-  /// Get theme color override (if theme is active)
-  Color? getThemeColor() {
+  /// Get theme primary color (for main UI elements, selected tabs, highlights)
+  Color getThemePrimaryColor() {
     switch (_state.activeTheme) {
       case 'stellar_gold':
-        return const Color(0xFFFFD700); // Gold
+        return const Color(0xFFFFD700); // Bright Gold
       case 'void_purple':
-        return const Color(0xFF9C27B0); // Purple
+        return const Color(0xFF9C27B0); // Deep Purple
       case 'omega_void':
-        return const Color(0xFF1A1A2E); // Deep void blue
+        return const Color(0xFF00BCD4); // Cyan
       default:
-        return null; // Use era default
+        return _state.eraConfig.primaryColor; // Era default
     }
   }
   
-  /// Get accent color for active theme
-  Color? getThemeAccentColor() {
+  /// Get theme accent color (for buttons, icons, text highlights)
+  Color getThemeAccentColor() {
     switch (_state.activeTheme) {
       case 'stellar_gold':
-        return const Color(0xFFFFA000); // Amber accent
+        return const Color(0xFFFFA000); // Amber
       case 'void_purple':
-        return const Color(0xFFE040FB); // Pink accent
+        return const Color(0xFFE040FB); // Magenta/Pink
       case 'omega_void':
-        return const Color(0xFF00BCD4); // Cyan accent
+        return const Color(0xFF4DD0E1); // Light Cyan
       default:
-        return null;
+        return _state.eraConfig.accentColor; // Era default
     }
   }
+  
+  /// Get theme secondary color (for borders, subtle highlights)
+  Color getThemeSecondaryColor() {
+    switch (_state.activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFB8860B); // Dark Gold
+      case 'void_purple':
+        return const Color(0xFF6A1B9A); // Dark Purple
+      case 'omega_void':
+        return const Color(0xFF006064); // Dark Cyan/Teal
+      default:
+        return _state.eraConfig.primaryColor.withValues(alpha: 0.7);
+    }
+  }
+  
+  /// Get theme glow color (for effects, particles, glows)
+  Color getThemeGlowColor() {
+    switch (_state.activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFD700); // Gold glow
+      case 'void_purple':
+        return const Color(0xFFE040FB); // Pink glow
+      case 'omega_void':
+        return const Color(0xFF00BCD4); // Cyan glow
+      default:
+        return _state.eraConfig.accentColor;
+    }
+  }
+  
+  /// Get theme text accent color (for highlighted text)
+  Color getThemeTextAccent() {
+    switch (_state.activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFD700); // Gold text
+      case 'void_purple':
+        return const Color(0xFFCE93D8); // Light Purple text
+      case 'omega_void':
+        return const Color(0xFF80DEEA); // Light Cyan text
+      default:
+        return const Color(0xFFFFD700); // Default gold
+    }
+  }
+  
+  /// Get gradient colors for buttons and cards
+  List<Color> getThemeGradient() {
+    switch (_state.activeTheme) {
+      case 'stellar_gold':
+        return [const Color(0xFFFFD700), const Color(0xFFB8860B)];
+      case 'void_purple':
+        return [const Color(0xFF9C27B0), const Color(0xFFE040FB)];
+      case 'omega_void':
+        return [const Color(0xFF00BCD4), const Color(0xFF006064)];
+      default:
+        return [_state.eraConfig.accentColor, _state.eraConfig.primaryColor];
+    }
+  }
+  
+  /// Check if a cosmetic theme is active (not using era default)
+  bool get hasActiveTheme => _state.activeTheme != null;
   
   /// Activate production boost (from ads or purchase)
   void activateProductionBoost(double multiplier, Duration duration) {

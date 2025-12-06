@@ -33,7 +33,7 @@ class AppColors {
   static const Color surfaceDark = Color(0xFF1A1A24);
   static const Color surfaceLight = Color(0xFF252532);
   
-  // Accent Colors
+  // Accent Colors (default - can be overridden by themes)
   static const Color goldAccent = Color(0xFFD4AF37);
   static const Color goldLight = Color(0xFFFFD700);
   static const Color goldDark = Color(0xFFB8860B);
@@ -53,6 +53,107 @@ class AppColors {
   static const Color warning = Color(0xFFFF9800);
   static const Color error = Color(0xFFF44336);
   static const Color info = Color(0xFF2196F3);
+}
+
+/// Theme-aware color provider for cosmetic themes
+class ThemeColors {
+  /// Get primary accent color based on active theme
+  static Color getAccent(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFD700); // Gold
+      case 'void_purple':
+        return const Color(0xFF9C27B0); // Purple
+      case 'omega_void':
+        return const Color(0xFF00BCD4); // Cyan
+      default:
+        return AppColors.goldLight; // Default gold
+    }
+  }
+  
+  /// Get secondary/light accent color based on active theme
+  static Color getAccentLight(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFF176); // Light Gold
+      case 'void_purple':
+        return const Color(0xFFE040FB); // Pink/Magenta
+      case 'omega_void':
+        return const Color(0xFF4DD0E1); // Light Cyan
+      default:
+        return AppColors.goldLight;
+    }
+  }
+  
+  /// Get dark accent color based on active theme
+  static Color getAccentDark(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFB8860B); // Dark Gold
+      case 'void_purple':
+        return const Color(0xFF6A1B9A); // Dark Purple
+      case 'omega_void':
+        return const Color(0xFF006064); // Dark Cyan
+      default:
+        return AppColors.goldDark;
+    }
+  }
+  
+  /// Get text accent color based on active theme
+  static Color getTextAccent(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFD700); // Gold
+      case 'void_purple':
+        return const Color(0xFFCE93D8); // Light Purple
+      case 'omega_void':
+        return const Color(0xFF80DEEA); // Light Cyan
+      default:
+        return AppColors.textAccent;
+    }
+  }
+  
+  /// Get glass highlight color based on active theme
+  static Color getGlassHighlight(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return const Color(0x4DFFD700); // Gold glow
+      case 'void_purple':
+        return const Color(0x4D9C27B0); // Purple glow
+      case 'omega_void':
+        return const Color(0x4D00BCD4); // Cyan glow
+      default:
+        return AppColors.glassHighlight;
+    }
+  }
+  
+  /// Get button/interactive element gradient colors
+  static List<Color> getGradient(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return [const Color(0xFFFFD700), const Color(0xFFFFA000)];
+      case 'void_purple':
+        return [const Color(0xFF9C27B0), const Color(0xFFE040FB)];
+      case 'omega_void':
+        return [const Color(0xFF00BCD4), const Color(0xFF006064)];
+      default:
+        return [AppColors.goldLight, AppColors.goldDark];
+    }
+  }
+  
+  /// Get border glow color based on active theme
+  static Color getBorderGlow(String? activeTheme) {
+    switch (activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFD700);
+      case 'void_purple':
+        return const Color(0xFFE040FB);
+      case 'omega_void':
+        return const Color(0xFF00BCD4);
+      default:
+        return AppColors.goldAccent;
+    }
+  }
 }
 
 /// Text Styles

@@ -24,6 +24,9 @@ enum NotificationType {
   artifactFound,
   legendaryStageComplete,
   legendaryStageReady,
+  // Piggy Bank
+  piggyBankDeposit,
+  piggyBankCollected,
 }
 
 /// In-app notification banner model
@@ -446,6 +449,36 @@ class NotificationBannerController extends ChangeNotifier {
       color: isBossStage ? Colors.red : Colors.purple,
       onTap: onTap,
       duration: const Duration(seconds: 10),  // Longer duration for important notification
+    ));
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PIGGY BANK NOTIFICATIONS
+  // ═══════════════════════════════════════════════════════════════
+  
+  void showPiggyBankDeposit(double amount, double total, VoidCallback onTap) {
+    show(NotificationBannerData(
+      id: 'piggy_deposit_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.piggyBankDeposit,
+      title: '🐷 PIGGY BANK +${amount.toStringAsFixed(0)} DM',
+      message: 'Total: ${total.toStringAsFixed(0)} DM saved!',
+      icon: Icons.savings,
+      color: Colors.pink,
+      onTap: onTap,
+      duration: const Duration(seconds: 3),
+    ));
+  }
+  
+  void showPiggyBankCollected(double amount, VoidCallback onTap) {
+    show(NotificationBannerData(
+      id: 'piggy_collected_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.piggyBankCollected,
+      title: '🎉 PIGGY BANK BROKEN!',
+      message: 'Collected ${amount.toStringAsFixed(0)} Dark Matter!',
+      icon: Icons.savings,
+      color: Colors.amber,
+      onTap: onTap,
+      duration: const Duration(seconds: 5),
     ));
   }
 }

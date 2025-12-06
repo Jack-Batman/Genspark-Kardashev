@@ -200,6 +200,21 @@ class GameState extends HiveObject {
   @HiveField(58)
   double highestKardashevEver; // Tracks highest K level ever achieved across all prestiges
   
+  // Piggy Bank - Accumulates DM from expeditions/achievements for small purchase
+  @HiveField(59, defaultValue: 0.0)
+  double piggyBankDarkMatter;
+  
+  @HiveField(60, defaultValue: false)
+  bool piggyBankBroken; // True if already collected
+  
+  // Haptic Feedback Settings
+  @HiveField(61, defaultValue: 1)
+  int hapticIntensity; // 0=off, 1=light, 2=medium, 3=heavy
+  
+  // Number Format Options
+  @HiveField(62, defaultValue: 0)
+  int numberFormat; // 0=standard (1.23M), 1=scientific (1.23e6), 2=engineering (1.23×10⁶)
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -260,6 +275,10 @@ class GameState extends HiveObject {
     this.lastMonthlyDMClaimed,
     List<Map<String, dynamic>>? activeExpeditions,
     this.highestKardashevEver = 0.0,
+    this.piggyBankDarkMatter = 0.0,
+    this.piggyBankBroken = false,
+    this.hapticIntensity = 1,
+    this.numberFormat = 0,
   })  : generators = generators ?? {},
         activeExpeditions = activeExpeditions ?? [],
         ownedArtifactIds = ownedArtifactIds ?? [],
@@ -508,9 +527,14 @@ class GameState extends HiveObject {
   double get membershipOfflineBonus => isMembershipActive ? 0.5 : 0.0;
   
   /// Calculate offline earnings with bonuses (3hr default, 24hr for members)
+  /// OPTIMIZED: Uses caching for expensive energyPerSecond calculation
   double calculateOfflineEarnings() {
     final now = DateTime.now();
     final difference = now.difference(lastOnlineTime);
+    
+    // Quick exit for very short offline times
+    if (difference.inSeconds < 60) return 0;
+    
     final hours = difference.inSeconds / 3600;
     final cappedHours = hours.clamp(0, maxOfflineHours); // 3 hours default, 24 hours for members
     
@@ -518,7 +542,50 @@ class GameState extends HiveObject {
     final baseEfficiency = 0.5; // 50% base offline efficiency
     final totalEfficiency = baseEfficiency + offlineBonus + membershipOfflineBonus;
     
-    return energyPerSecond * cappedHours * 3600 * totalEfficiency;
+    // Calculate energy per second once (expensive operation)
+    final eps = energyPerSecond;
+    
+    return eps * cappedHours * 3600 * totalEfficiency;
+  }
+  
+  /// Optimized offline earnings calculation with detailed breakdown
+  /// Returns map with earnings breakdown for UI display
+  Map<String, double> calculateOfflineEarningsDetailed() {
+    final now = DateTime.now();
+    final difference = now.difference(lastOnlineTime);
+    
+    // Early exit for minimal offline time
+    if (difference.inSeconds < 60) {
+      return {
+        'total': 0,
+        'base': 0,
+        'bonus': 0,
+        'membership': 0,
+        'hours': 0,
+      };
+    }
+    
+    final hours = difference.inSeconds / 3600;
+    final cappedHours = hours.clamp(0.0, maxOfflineHours.toDouble());
+    
+    // Base calculations
+    final eps = energyPerSecond;
+    final baseEfficiency = 0.5;
+    
+    // Calculate individual contributions
+    final baseEarnings = eps * cappedHours * 3600 * baseEfficiency;
+    final bonusEarnings = eps * cappedHours * 3600 * offlineBonus;
+    final membershipEarnings = eps * cappedHours * 3600 * membershipOfflineBonus;
+    
+    return {
+      'total': baseEarnings + bonusEarnings + membershipEarnings,
+      'base': baseEarnings,
+      'bonus': bonusEarnings,
+      'membership': membershipEarnings,
+      'hours': cappedHours,
+      'cappedHours': cappedHours,
+      'actualHours': hours,
+    };
   }
   
   /// Calculate what offline earnings would be with 2x ad bonus
@@ -600,6 +667,10 @@ class GameState extends HiveObject {
     double? darkEnergy,
     List<Map<String, dynamic>>? activeExpeditions,
     double? highestKardashevEver,
+    double? piggyBankDarkMatter,
+    bool? piggyBankBroken,
+    int? hapticIntensity,
+    int? numberFormat,
   }) {
     return GameState(
       energy: energy ?? this.energy,
@@ -661,6 +732,10 @@ class GameState extends HiveObject {
       darkEnergy: darkEnergy ?? this.darkEnergy,
       activeExpeditions: activeExpeditions ?? List.from(this.activeExpeditions.map((e) => Map<String, dynamic>.from(e))),
       highestKardashevEver: highestKardashevEver ?? this.highestKardashevEver,
+      piggyBankDarkMatter: piggyBankDarkMatter ?? this.piggyBankDarkMatter,
+      piggyBankBroken: piggyBankBroken ?? this.piggyBankBroken,
+      hapticIntensity: hapticIntensity ?? this.hapticIntensity,
+      numberFormat: numberFormat ?? this.numberFormat,
     );
   }
   

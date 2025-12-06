@@ -7,6 +7,7 @@ import '../services/daily_deals_service.dart';
 import '../providers/game_provider.dart';
 import 'glass_container.dart';
 import 'daily_deals_widget.dart';
+import 'piggy_bank_widget.dart';
 
 /// Main Store Screen with all monetization options
 class StoreScreen extends StatefulWidget {
@@ -75,27 +76,32 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           
           // Grant guaranteed rare architect
           if (result.rewards!['guaranteedRareArchitect'] == true) {
-            // TODO: Implement guaranteed rare architect grant
+            widget.gameProvider.grantRandomArchitectOfRarity('rare');
           }
           
-          // Grant time warps
+          // Grant time warps (FREE - from purchase, not costing DM)
           if (result.rewards!.containsKey('timeWarps')) {
             final timeWarps = (result.rewards!['timeWarps'] as num).toInt();
             for (int i = 0; i < timeWarps; i++) {
-              widget.gameProvider.activateTimeWarp(hours: 1);
+              widget.gameProvider.activateFreeTimeWarp(hours: 1);
             }
+          }
+          
+          // Grant exclusive border from founder's pack
+          if (result.rewards!.containsKey('exclusiveBorder')) {
+            widget.gameProvider.addCosmetic(result.rewards!['exclusiveBorder'] as String);
           }
         }
         
-        // Handle cosmetics
+        // Handle cosmetics (use the new addCosmetic method)
         if (result.rewards!.containsKey('theme')) {
-          widget.gameProvider.state.ownedCosmetics.add(result.rewards!['theme'] as String);
+          widget.gameProvider.addCosmetic(result.rewards!['theme'] as String);
         }
         if (result.rewards!.containsKey('border')) {
-          widget.gameProvider.state.ownedCosmetics.add(result.rewards!['border'] as String);
+          widget.gameProvider.addCosmetic(result.rewards!['border'] as String);
         }
         if (result.rewards!.containsKey('particles')) {
-          widget.gameProvider.state.ownedCosmetics.add(result.rewards!['particles'] as String);
+          widget.gameProvider.addCosmetic(result.rewards!['particles'] as String);
         }
         
         if (mounted) {
@@ -207,6 +213,14 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         children: [
           // Current DM Balance
           _buildBalanceCard(),
+          
+          const SizedBox(height: 16),
+          
+          // Piggy Bank Section
+          PiggyBankWidget(
+            gameProvider: widget.gameProvider,
+            onBreak: () => setState(() {}),
+          ),
           
           const SizedBox(height: 16),
           
@@ -586,27 +600,140 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   }
   
   Widget _buildCosmeticsTab() {
-    final cosmetics = _iapService.getAvailableCosmetics();
+    final availableCosmetics = _iapService.getAvailableCosmetics();
+    final ownedCosmetics = widget.gameProvider.ownedCosmetics;
+    final activeTheme = widget.gameProvider.activeTheme;
+    final activeBorder = widget.gameProvider.activeBorder;
+    final activeParticles = widget.gameProvider.activeParticles;
+    
+    // Get owned themes, borders, particles
+    final ownedThemes = cosmeticItems.where((c) => 
+      c.rewards.containsKey('theme') && ownedCosmetics.contains(c.rewards['theme'])
+    ).toList();
+    final ownedBorders = cosmeticItems.where((c) => 
+      c.rewards.containsKey('border') && ownedCosmetics.contains(c.rewards['border'])
+    ).toList();
+    final ownedParticlesItems = cosmeticItems.where((c) => 
+      c.rewards.containsKey('particles') && ownedCosmetics.contains(c.rewards['particles'])
+    ).toList();
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (cosmetics.isEmpty)
+          // Currently Active Section
+          const Text(
+            'CURRENTLY ACTIVE',
+            style: TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildActiveCosmetics(activeTheme, activeBorder, activeParticles),
+          
+          const SizedBox(height: 24),
+          
+          // Owned Themes Section
+          if (ownedThemes.isNotEmpty) ...[
+            const Text(
+              'OWNED THEMES',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.success,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...ownedThemes.map((product) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildOwnedCosmeticCard(product, 'theme', activeTheme),
+            )),
+            const SizedBox(height: 16),
+          ],
+          
+          // Owned Borders Section
+          if (ownedBorders.isNotEmpty) ...[
+            const Text(
+              'OWNED BORDERS',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.success,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...ownedBorders.map((product) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildOwnedCosmeticCard(product, 'border', activeBorder),
+            )),
+            const SizedBox(height: 16),
+          ],
+          
+          // Owned Particles Section
+          if (ownedParticlesItems.isNotEmpty) ...[
+            const Text(
+              'OWNED EFFECTS',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.success,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...ownedParticlesItems.map((product) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildOwnedCosmeticCard(product, 'particles', activeParticles),
+            )),
+            const SizedBox(height: 16),
+          ],
+          
+          // Available for Purchase Section
+          if (availableCosmetics.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'AVAILABLE FOR PURCHASE',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.goldLight,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            ...availableCosmetics.map((product) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildCosmeticCard(product),
+            )),
+          ],
+          
+          // All owned message
+          if (availableCosmetics.isEmpty && ownedThemes.isEmpty && ownedBorders.isEmpty && ownedParticlesItems.isEmpty)
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(48),
                 child: Column(
                   children: [
                     Icon(
-                      Icons.check_circle,
+                      Icons.palette,
                       size: 64,
-                      color: AppColors.success.withValues(alpha: 0.5),
+                      color: AppColors.textSecondary.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'All cosmetics owned!',
+                      'No cosmetics available yet.',
                       style: TextStyle(
                         fontSize: 16,
                         color: AppColors.textSecondary,
@@ -615,48 +742,186 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                   ],
                 ),
               ),
-            )
-          else ...[
-            const Text(
-              'UI THEMES',
-              style: TextStyle(
-                fontFamily: 'Orbitron',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-                letterSpacing: 2,
+            ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildActiveCosmetics(String? activeTheme, String? activeBorder, String? activeParticles) {
+    return GlassContainer(
+      padding: const EdgeInsets.all(16),
+      borderColor: AppColors.goldAccent.withValues(alpha: 0.3),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              children: [
+                Icon(Icons.palette, color: activeTheme != null ? AppColors.goldLight : AppColors.textSecondary, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  activeTheme ?? 'Default',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: activeTheme != null ? AppColors.goldLight : AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Text('Theme', style: TextStyle(fontSize: 8, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.1)),
+          Expanded(
+            child: Column(
+              children: [
+                Icon(Icons.border_all, color: activeBorder != null ? AppColors.goldLight : AppColors.textSecondary, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  activeBorder ?? 'None',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: activeBorder != null ? AppColors.goldLight : AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Text('Border', style: TextStyle(fontSize: 8, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.1)),
+          Expanded(
+            child: Column(
+              children: [
+                Icon(Icons.auto_awesome, color: activeParticles != null ? AppColors.goldLight : AppColors.textSecondary, size: 24),
+                const SizedBox(height: 4),
+                Text(
+                  activeParticles ?? 'None',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: activeParticles != null ? AppColors.goldLight : AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const Text('Effects', style: TextStyle(fontSize: 8, color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildOwnedCosmeticCard(IAPProduct product, String type, String? activeId) {
+    final cosmeticId = product.rewards[type] as String;
+    final isActive = activeId == cosmeticId;
+    
+    return GlassContainer(
+      padding: const EdgeInsets.all(16),
+      borderColor: isActive ? AppColors.success.withValues(alpha: 0.6) : null,
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: isActive
+                    ? [AppColors.success.withValues(alpha: 0.3), AppColors.success.withValues(alpha: 0.1)]
+                    : [Colors.grey.withValues(alpha: 0.3), Colors.grey.withValues(alpha: 0.1)],
               ),
             ),
-            const SizedBox(height: 12),
-            
-            ...cosmetics
-                .where((c) => c.rewards.containsKey('theme'))
-                .map((product) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildCosmeticCard(product),
-                )),
-            
-            const SizedBox(height: 16),
-            
-            const Text(
-              'EFFECTS & BORDERS',
-              style: TextStyle(
-                fontFamily: 'Orbitron',
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-                letterSpacing: 2,
+            child: Icon(
+              type == 'theme' ? Icons.palette : type == 'border' ? Icons.border_all : Icons.auto_awesome,
+              color: isActive ? AppColors.success : AppColors.textSecondary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      product.name,
+                      style: const TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (isActive) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'ACTIVE',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.success,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  product.description,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: isActive ? () {
+              // Unequip
+              if (type == 'theme') widget.gameProvider.equipTheme(null);
+              else if (type == 'border') widget.gameProvider.equipBorder(null);
+              else widget.gameProvider.equipParticles(null);
+              setState(() {});
+            } : () {
+              // Equip
+              if (type == 'theme') widget.gameProvider.equipTheme(cosmeticId);
+              else if (type == 'border') widget.gameProvider.equipBorder(cosmeticId);
+              else widget.gameProvider.equipParticles(cosmeticId);
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${product.name} equipped!'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isActive ? AppColors.error.withValues(alpha: 0.3) : AppColors.success,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
-            const SizedBox(height: 12),
-            
-            ...cosmetics
-                .where((c) => c.rewards.containsKey('particles') || c.rewards.containsKey('border'))
-                .map((product) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildCosmeticCard(product),
-                )),
-          ],
+            child: Text(
+              isActive ? 'REMOVE' : 'EQUIP',
+              style: const TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -843,7 +1108,8 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
             onPressed: canWatch ? () async {
               final result = await _adService.showRewardedAd(AdPlacement.freeTimeWarp);
               if (result.success) {
-                widget.gameProvider.activateTimeWarp(hours: 1);
+                // Use FREE time warp - no DM cost
+                widget.gameProvider.activateFreeTimeWarp(hours: 1);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1250,17 +1516,17 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
           ),
           ElevatedButton(
             onPressed: canAfford ? () async {
-              // Deduct DM and add cosmetic
+              // Deduct DM and add cosmetic using proper methods
               widget.gameProvider.state.darkMatter -= dmCost;
               final rewards = product.rewards;
               if (rewards.containsKey('theme')) {
-                widget.gameProvider.state.ownedCosmetics.add(rewards['theme'] as String);
+                widget.gameProvider.addCosmetic(rewards['theme'] as String);
               }
               if (rewards.containsKey('border')) {
-                widget.gameProvider.state.ownedCosmetics.add(rewards['border'] as String);
+                widget.gameProvider.addCosmetic(rewards['border'] as String);
               }
               if (rewards.containsKey('particles')) {
-                widget.gameProvider.state.ownedCosmetics.add(rewards['particles'] as String);
+                widget.gameProvider.addCosmetic(rewards['particles'] as String);
               }
               _iapService.loadPurchasedProducts([product.id]);
               setState(() {});

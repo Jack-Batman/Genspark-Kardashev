@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../core/era_data.dart';
 import '../providers/game_provider.dart';
 import '../services/audio_service.dart';
+import '../services/haptic_service.dart';
 import 'tutorial_manager.dart';
 
 /// Enhanced Settings widget with volume controls, notification preferences, and data management
@@ -92,15 +93,15 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             () => widget.gameProvider.toggleSound(),
             eraConfig,
           ),
-          _buildToggleTile(
-            'Haptic Feedback',
-            'Enable vibration feedback',
-            Icons.vibration,
-            widget.gameProvider.state.hapticsEnabled,
-            () => widget.gameProvider.toggleHaptics(),
-            eraConfig,
-          ),
+          _buildHapticIntensitySelector(eraConfig),
 
+          const SizedBox(height: 16),
+          
+          // Section: Display
+          _buildSectionHeader('DISPLAY', eraConfig),
+          const SizedBox(height: 8),
+          _buildNumberFormatSelector(eraConfig),
+          
           const SizedBox(height: 16),
           
           // Section: Notifications
@@ -874,5 +875,245 @@ class _SettingsWidgetState extends State<SettingsWidget> {
       return '${hours}h ${minutes}m';
     }
     return '${minutes}m';
+  }
+  
+  Widget _buildHapticIntensitySelector(EraConfig eraConfig) {
+    final currentIntensity = widget.gameProvider.hapticIntensity;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.black.withValues(alpha: 0.3),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: eraConfig.primaryColor.withValues(alpha: 0.2),
+                ),
+                child: Icon(Icons.vibration, size: 18, color: eraConfig.primaryColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Haptic Feedback',
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      HapticService.getIntensityName(currentIntensity),
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: List.generate(4, (index) {
+              final isSelected = currentIntensity == index;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () {
+                    widget.gameProvider.setHapticIntensity(index);
+                    if (index > 0) {
+                      // Trigger haptic to demonstrate
+                      HapticService.mediumImpact();
+                    }
+                    setState(() {});
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(left: index > 0 ? 6 : 0),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: isSelected
+                          ? eraConfig.primaryColor.withValues(alpha: 0.3)
+                          : Colors.white.withValues(alpha: 0.05),
+                      border: Border.all(
+                        color: isSelected
+                            ? eraConfig.primaryColor
+                            : Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(
+                          index == 0 ? Icons.block : Icons.vibration,
+                          size: 16,
+                          color: isSelected
+                              ? eraConfig.primaryColor
+                              : Colors.white.withValues(alpha: 0.5),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          HapticService.getIntensityName(index),
+                          style: TextStyle(
+                            fontFamily: 'Orbitron',
+                            fontSize: 8,
+                            color: isSelected
+                                ? eraConfig.primaryColor
+                                : Colors.white.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildNumberFormatSelector(EraConfig eraConfig) {
+    final currentFormat = widget.gameProvider.numberFormat;
+    
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.black.withValues(alpha: 0.3),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: eraConfig.primaryColor.withValues(alpha: 0.2),
+                ),
+                child: Icon(Icons.format_list_numbered, size: 18, color: eraConfig.primaryColor),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Number Format',
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'How large numbers are displayed',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Column(
+            children: [
+              _buildNumberFormatOption(0, 'Standard', '1.23M, 4.56B', eraConfig, currentFormat),
+              const SizedBox(height: 6),
+              _buildNumberFormatOption(1, 'Scientific', '1.23e6, 4.56e9', eraConfig, currentFormat),
+              const SizedBox(height: 6),
+              _buildNumberFormatOption(2, 'Engineering', '1.23×10⁶, 4.56×10⁹', eraConfig, currentFormat),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildNumberFormatOption(int format, String name, String example, EraConfig eraConfig, int currentFormat) {
+    final isSelected = currentFormat == format;
+    
+    return GestureDetector(
+      onTap: () {
+        widget.gameProvider.updateNumberFormat(format);
+        setState(() {});
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: isSelected
+              ? eraConfig.primaryColor.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.03),
+          border: Border.all(
+            color: isSelected
+                ? eraConfig.primaryColor
+                : Colors.white.withValues(alpha: 0.1),
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+              size: 18,
+              color: isSelected
+                  ? eraConfig.primaryColor
+                  : Colors.white.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected
+                          ? eraConfig.primaryColor
+                          : Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  Text(
+                    example,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

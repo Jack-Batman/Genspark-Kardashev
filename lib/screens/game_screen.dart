@@ -16,6 +16,7 @@ import '../widgets/generator_card_v2.dart';
 // Entropy assistant removed
 import '../widgets/offline_earnings_dialog.dart';
 import '../widgets/research_tree_v2.dart';
+import '../widgets/visual_research_tree.dart';
 import '../widgets/settings_widget.dart';
 import '../widgets/era_transition_dialog.dart';
 import '../widgets/tutorial_overlay.dart';
@@ -280,7 +281,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                     ),
                   ),
 
-                // Daily Login Reward Dialog
+                // Daily Login Reward Dialog - Now shows scaled rewards!
                 if (gameProvider.showDailyReward && gameProvider.pendingDailyReward != null)
                   Positioned.fill(
                     child: DailyRewardDialog(
@@ -289,6 +290,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
                       totalLoginDays: gameProvider.state.totalLoginDays,
                       onClaim: () => gameProvider.claimDailyReward(),
                       onDismiss: () => gameProvider.dismissDailyReward(),
+                      // Pass player progress for scaled reward display
+                      energyPerSecond: gameProvider.state.energyPerSecond,
+                      kardashevLevel: gameProvider.state.kardashevLevel,
+                      currentEra: gameProvider.state.currentEra,
+                      prestigeCount: gameProvider.state.prestigeCount,
                     ),
                   ),
 
@@ -1125,7 +1131,7 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildResearchTab(GameProvider gameProvider) {
-    return ResearchTreeWidgetV2(gameProvider: gameProvider);
+    return _ResearchTabWithToggle(gameProvider: gameProvider);
   }
 
   Widget _buildArchitectsTab(GameProvider gameProvider) {
@@ -1450,6 +1456,124 @@ class _AscensionIconState extends State<_AscensionIcon> with SingleTickerProvide
           ),
         );
       },
+    );
+  }
+}
+
+/// Research Tab with List/Tree View Toggle
+class _ResearchTabWithToggle extends StatefulWidget {
+  final GameProvider gameProvider;
+  
+  const _ResearchTabWithToggle({required this.gameProvider});
+  
+  @override
+  State<_ResearchTabWithToggle> createState() => _ResearchTabWithToggleState();
+}
+
+class _ResearchTabWithToggleState extends State<_ResearchTabWithToggle> {
+  bool _showTreeView = true; // Default to visual tree view
+  
+  @override
+  Widget build(BuildContext context) {
+    final eraConfig = widget.gameProvider.state.eraConfig;
+    
+    return Column(
+      children: [
+        // View toggle header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            children: [
+              Text(
+                'RESEARCH LAB',
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: eraConfig.primaryColor,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const Spacer(),
+              // View toggle buttons
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: eraConfig.primaryColor.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildToggleButton(
+                      icon: Icons.account_tree,
+                      tooltip: 'Tree View',
+                      isSelected: _showTreeView,
+                      onTap: () => setState(() => _showTreeView = true),
+                      eraConfig: eraConfig,
+                    ),
+                    _buildToggleButton(
+                      icon: Icons.list,
+                      tooltip: 'List View',
+                      isSelected: !_showTreeView,
+                      onTap: () => setState(() => _showTreeView = false),
+                      eraConfig: eraConfig,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        
+        // Content
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _showTreeView
+                ? VisualResearchTree(
+                    key: const ValueKey('tree'),
+                    gameProvider: widget.gameProvider,
+                  )
+                : ResearchTreeWidgetV2(
+                    key: const ValueKey('list'),
+                    gameProvider: widget.gameProvider,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildToggleButton({
+    required IconData icon,
+    required String tooltip,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required EraConfig eraConfig,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? eraConfig.primaryColor.withValues(alpha: 0.3)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            icon,
+            size: 18,
+            color: isSelected
+                ? eraConfig.primaryColor
+                : Colors.white.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
     );
   }
 }

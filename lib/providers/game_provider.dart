@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/game_state.dart';
@@ -46,6 +47,35 @@ class PrestigeInfo {
   });
 }
 
+/// Optimized offline progress result - combines all offline calculations
+class OfflineProgressResult {
+  final double energyEarnings;
+  final Duration timeAway;
+  final double efficiency;
+  final int cappedHours;
+  final bool researchCompleted;
+  final String? completedResearchId;
+  final int expeditionsCompleted;
+  final double darkMatterFromExpeditions;
+  final double energyFromExpeditions;
+  final bool hadLegendaryProgress;
+  
+  const OfflineProgressResult({
+    this.energyEarnings = 0,
+    this.timeAway = Duration.zero,
+    this.efficiency = 0.5,
+    this.cappedHours = 3,
+    this.researchCompleted = false,
+    this.completedResearchId,
+    this.expeditionsCompleted = 0,
+    this.darkMatterFromExpeditions = 0,
+    this.energyFromExpeditions = 0,
+    this.hadLegendaryProgress = false,
+  });
+  
+  bool get hasProgress => energyEarnings > 0 || researchCompleted || expeditionsCompleted > 0;
+}
+
 class GameProvider extends ChangeNotifier {
   GameState _state = GameState();
   Box<GameState>? _gameBox;
@@ -56,6 +86,11 @@ class GameProvider extends ChangeNotifier {
   bool _isInitialized = false;
   double _offlineEarnings = 0;
   bool _showOfflineEarnings = false;
+  
+  // Offline progress optimization - cached values
+  OfflineProgressResult? _lastOfflineProgress;
+  double _cachedEnergyPerSecond = 0;
+  DateTime? _lastEpsCalculation;
   
   // Era transition state
   bool _showEraTransition = false;
@@ -232,17 +267,27 @@ class GameProvider extends ChangeNotifier {
             _state = loadedState;
             loadedSuccessfully = true;
             
-            // Calculate offline earnings
-            _offlineEarnings = _state.calculateOfflineEarnings();
+            // OPTIMIZED: Calculate all offline progress in a single pass
+            _lastOfflineProgress = calculateOfflineProgressOptimized();
+            _offlineEarnings = _lastOfflineProgress!.energyEarnings;
             if (_offlineEarnings > 0) {
               _showOfflineEarnings = true;
             }
             
-            // Check for offline research progress
+            // Check for offline research progress (uses cached result)
             _checkOfflineResearch();
             
             // Load active expeditions from persisted state
             _loadExpeditionsFromState();
+            
+            // Log offline progress summary in debug mode
+            if (kDebugMode && _lastOfflineProgress!.hasProgress) {
+              debugPrint('Offline Progress Summary:');
+              debugPrint('  - Time away: ${_lastOfflineProgress!.timeAway.inMinutes} minutes');
+              debugPrint('  - Energy earned: ${_lastOfflineProgress!.energyEarnings.toStringAsFixed(0)}');
+              debugPrint('  - Research completed: ${_lastOfflineProgress!.researchCompleted}');
+              debugPrint('  - Expeditions ready: ${_lastOfflineProgress!.expeditionsCompleted}');
+            }
           }
         } catch (e) {
           // If loading fails due to schema mismatch, clear and start fresh
@@ -372,22 +417,31 @@ class GameProvider extends ChangeNotifier {
     }
   }
   
-  /// Claim daily login reward
+  /// Claim daily login reward - NOW SCALES WITH PLAYER PROGRESS!
   void claimDailyReward() {
     if (!_showDailyReward || _dailyRewardClaimed || _pendingDailyReward == null) return;
     
     final reward = _pendingDailyReward!;
     final multiplier = getStreakMultiplier(_state.totalLoginDays);
     
+    // Calculate scaled rewards based on player progress
+    final energyReward = reward.getEnergyReward(_state.energyPerSecond, _state.kardashevLevel);
+    final darkMatterReward = reward.getDarkMatterReward(_state.currentEra, _state.kardashevLevel);
+    final darkEnergyReward = reward.getDarkEnergyReward(_state.prestigeCount);
+    
     // Apply rewards with streak multiplier
-    if (reward.energyReward > 0) {
-      final energyGain = reward.energyReward * multiplier;
+    if (energyReward > 0) {
+      final energyGain = energyReward * multiplier;
       _state.energy += energyGain;
       _state.totalEnergyEarned += energyGain;
     }
-    if (reward.darkMatterReward > 0) {
-      final dmGain = reward.darkMatterReward * multiplier;
+    if (darkMatterReward > 0) {
+      final dmGain = darkMatterReward * multiplier;
       _state.darkMatter += dmGain;
+    }
+    if (darkEnergyReward > 0) {
+      final deGain = darkEnergyReward * multiplier;
+      _state.darkEnergy += deGain;
     }
     
     _dailyRewardClaimed = true;
@@ -434,6 +488,124 @@ class GameProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // OFFLINE PROGRESS OPTIMIZATION SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Get cached energy per second - avoids recalculating every frame
+  /// Cache invalidates after 500ms or when state changes significantly
+  double get cachedEnergyPerSecond {
+    final now = DateTime.now();
+    if (_lastEpsCalculation == null || 
+        now.difference(_lastEpsCalculation!).inMilliseconds > 500) {
+      _cachedEnergyPerSecond = _state.energyPerSecond;
+      _lastEpsCalculation = now;
+    }
+    return _cachedEnergyPerSecond;
+  }
+  
+  /// Invalidate EPS cache (call when generators/upgrades/research changes)
+  void _invalidateEpsCache() {
+    _lastEpsCalculation = null;
+  }
+  
+  /// OPTIMIZED: Calculate all offline progress in a single pass
+  /// This replaces separate calls to calculateOfflineEarnings, _checkOfflineResearch, etc.
+  OfflineProgressResult calculateOfflineProgressOptimized() {
+    final now = DateTime.now();
+    final difference = now.difference(_state.lastOnlineTime);
+    
+    // Quick exit for minimal offline time (less than 1 minute)
+    if (difference.inSeconds < 60) {
+      return const OfflineProgressResult();
+    }
+    
+    // Pre-calculate common values once
+    final hours = difference.inSeconds / 3600;
+    final maxHours = _state.maxOfflineHours;
+    final cappedHours = hours.clamp(0.0, maxHours.toDouble());
+    
+    // Calculate efficiency once
+    const baseEfficiency = 0.5;
+    final totalEfficiency = baseEfficiency + _state.offlineBonus + _state.membershipOfflineBonus;
+    
+    // Get EPS once (expensive operation)
+    final eps = _state.energyPerSecond;
+    
+    // Calculate energy earnings
+    final energyEarnings = eps * cappedHours * 3600 * totalEfficiency;
+    
+    // Check research completion
+    bool researchCompleted = false;
+    String? completedResearchId;
+    if (_state.currentResearchIdPersisted != null && 
+        _state.researchStartTime != null &&
+        _state.researchTotalPersisted > 0) {
+      final elapsed = now.difference(_state.researchStartTime!).inSeconds;
+      if (elapsed >= _state.researchTotalPersisted) {
+        researchCompleted = true;
+        completedResearchId = _state.currentResearchIdPersisted;
+      }
+    }
+    
+    // Check expedition completions
+    int expeditionsCompleted = 0;
+    double darkMatterFromExpeditions = 0;
+    double energyFromExpeditions = 0;
+    
+    for (final expMap in _state.activeExpeditions) {
+      try {
+        final active = ActiveExpedition.fromMap(expMap);
+        if (active.canCollect) {
+          expeditionsCompleted++;
+          // Estimate rewards (actual rewards calculated on collection)
+          final expedition = getExpeditionById(active.expeditionId);
+          if (expedition != null) {
+            // Sum up base rewards by type
+            for (final reward in expedition.baseRewards) {
+              if (reward.type == ExpeditionRewardType.darkMatter) {
+                darkMatterFromExpeditions += reward.amount;
+              } else if (reward.type == ExpeditionRewardType.energy) {
+                energyFromExpeditions += reward.amount;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Skip invalid expedition data
+      }
+    }
+    
+    // Check legendary expedition progress
+    bool hadLegendaryProgress = false;
+    if (_state.activeLegendaryExpedition != null) {
+      try {
+        final legendary = _state.activeLegendary;
+        if (legendary != null && legendary.canResolveCurrentStage) {
+          hadLegendaryProgress = true;
+        }
+      } catch (e) {
+        // Skip invalid legendary data
+      }
+    }
+    
+    return OfflineProgressResult(
+      energyEarnings: energyEarnings,
+      timeAway: difference,
+      efficiency: totalEfficiency,
+      cappedHours: cappedHours.round(),
+      researchCompleted: researchCompleted,
+      completedResearchId: completedResearchId,
+      expeditionsCompleted: expeditionsCompleted,
+      darkMatterFromExpeditions: darkMatterFromExpeditions,
+      energyFromExpeditions: energyFromExpeditions,
+      hadLegendaryProgress: hadLegendaryProgress,
+    );
+  }
+  
+  /// Get the last calculated offline progress (for UI display)
+  OfflineProgressResult? get lastOfflineProgress => _lastOfflineProgress;
   
   /// Dismiss offline earnings popup
   void dismissOfflineEarnings() {
@@ -759,6 +931,7 @@ class GameProvider extends ChangeNotifier {
     _updateChallengeProgress(ChallengeObjective.purchaseGenerators, 1);
     
     _state.updateKardashevLevel();
+    _invalidateEpsCache(); // Invalidate cached EPS after generator change
     AudioService.playPurchase();
     HapticService.mediumImpact();
     notifyListeners();
@@ -792,6 +965,7 @@ class GameProvider extends ChangeNotifier {
     _updateChallengeProgress(ChallengeObjective.purchaseGenerators, count.toDouble());
     
     _state.updateKardashevLevel();
+    _invalidateEpsCache(); // Invalidate cached EPS after bulk generator change
     AudioService.playPurchase();
     HapticService.heavyImpact();
     notifyListeners();
@@ -808,6 +982,7 @@ class GameProvider extends ChangeNotifier {
     _state.generatorLevels[genData.id] = (_state.generatorLevels[genData.id] ?? 1) + 1;
     
     _state.updateKardashevLevel();
+    _invalidateEpsCache(); // Invalidate cached EPS after upgrade
     AudioService.playPurchase();
     HapticService.mediumImpact();
     notifyListeners();
@@ -834,6 +1009,7 @@ class GameProvider extends ChangeNotifier {
     _state.generatorLevels[genData.id] = currentLevel + count;
     
     _state.updateKardashevLevel();
+    _invalidateEpsCache(); // Invalidate cached EPS after bulk upgrade
     AudioService.playPurchase();
     HapticService.mediumImpact();
     notifyListeners();
@@ -962,12 +1138,128 @@ class GameProvider extends ChangeNotifier {
     return true;
   }
   
+  /// Grant a random architect of at least the specified rarity (for founder's pack, etc.)
+  /// Returns the architect ID if successful, null if no architects available
+  String? grantRandomArchitectOfRarity(String minRarity) {
+    // Get all architects from all eras
+    final allArchitects = [...eraIArchitects, ...eraIIArchitects, ...eraIIIArchitects, ...eraIVArchitects];
+    
+    // Filter to unowned architects of at least the minimum rarity
+    final rarityOrder = ['common', 'rare', 'epic', 'legendary'];
+    final minIndex = rarityOrder.indexOf(minRarity.toLowerCase());
+    
+    final available = allArchitects.where((a) {
+      if (_state.ownedArchitects.contains(a.id)) return false;
+      final aRarityIndex = rarityOrder.indexOf(a.rarity.name.toLowerCase());
+      return aRarityIndex >= minIndex;
+    }).toList();
+    
+    if (available.isEmpty) return null;
+    
+    // Random selection with higher chance for lower rarities within the pool
+    final random = Random();
+    final selected = available[random.nextInt(available.length)];
+    
+    _state.ownedArchitects.add(selected.id);
+    HapticService.heavyImpact();
+    AudioService.playAchievement();
+    _saveGame();
+    notifyListeners();
+    return selected.id;
+  }
+  
   /// Add dark matter (from expeditions, ads, etc.)
   void addDarkMatter(double amount) {
     final bonusAmount = amount * (1 + _state.darkMatterBonus);
     _state.darkMatter += bonusAmount;
     notifyListeners();
   }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PIGGY BANK SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Get current piggy bank balance (capped at capacity)
+  double get piggyBankBalance {
+    // Cap at capacity to fix any existing overflow data
+    final capacity = piggyBankCapacity;
+    return _state.piggyBankDarkMatter.clamp(0, capacity);
+  }
+  
+  /// Check if piggy bank has been broken (collected)
+  bool get isPiggyBankBroken => _state.piggyBankBroken;
+  
+  /// Check if piggy bank can be broken (has minimum DM and not already broken)
+  bool get canBreakPiggyBank => _state.piggyBankDarkMatter >= 10 && !_state.piggyBankBroken;
+  
+  /// Add dark matter to piggy bank (from expeditions, achievements, etc.)
+  /// Caps at piggyBankCapacity - cannot exceed the limit
+  void addToPiggyBank(double amount) {
+    if (_state.piggyBankBroken) return; // Can't add to broken piggy bank
+    if (isPiggyBankFull) return; // Can't add to full piggy bank
+    
+    // Cap at capacity - don't allow overflow
+    final newBalance = _state.piggyBankDarkMatter + amount;
+    _state.piggyBankDarkMatter = newBalance.clamp(0, piggyBankCapacity);
+    
+    HapticService.coinDrop();
+    notifyListeners();
+  }
+  
+  /// Break piggy bank and collect dark matter (small IAP purchase simulation)
+  /// In production, this would require an actual small purchase
+  bool breakPiggyBank() {
+    if (!canBreakPiggyBank) return false;
+    
+    // Get capped balance (in case of legacy overflow data)
+    final collectedAmount = piggyBankBalance;
+    
+    // Transfer piggy bank DM to main balance
+    _state.darkMatter += collectedAmount;
+    _state.piggyBankBroken = true;
+    _state.piggyBankDarkMatter = 0; // Clear the raw value too
+    
+    HapticService.piggyBankBreak();
+    AudioService.playAchievement();
+    
+    // Send notification
+    _notificationController.showPiggyBankCollected(
+      collectedAmount,
+      () {},
+    );
+    
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Reset piggy bank after prestige or purchase of new one
+  void resetPiggyBank() {
+    _state.piggyBankDarkMatter = 0;
+    _state.piggyBankBroken = false;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Get piggy bank fill level (0.0-1.0) based on capacity tiers
+  /// Capacity increases: 100 DM tier 1, 250 DM tier 2, 500 DM tier 3, 1000 DM max
+  double get piggyBankFillLevel {
+    final balance = piggyBankBalance; // Uses the capped getter
+    final capacity = piggyBankCapacity;
+    return (balance / capacity).clamp(0.0, 1.0);
+  }
+  
+  /// Get current piggy bank capacity based on prestige count
+  double get piggyBankCapacity {
+    // Capacity grows with prestige
+    if (_state.prestigeCount >= 10) return 1000;
+    if (_state.prestigeCount >= 5) return 500;
+    if (_state.prestigeCount >= 2) return 250;
+    return 100;
+  }
+  
+  /// Check if piggy bank is full
+  bool get isPiggyBankFull => piggyBankBalance >= piggyBankCapacity;
   
   // ═══════════════════════════════════════════════════════════════
   // EXPEDITION SYSTEM
@@ -1099,7 +1391,13 @@ class GameProvider extends ChangeNotifier {
             _state.energy += reward.amount;
             _state.totalEnergyEarned += reward.amount;
           case ExpeditionRewardType.darkMatter:
-            _state.darkMatter += reward.amount * (1 + _state.darkMatterBonus);
+            final dmReward = reward.amount * (1 + _state.darkMatterBonus);
+            _state.darkMatter += dmReward;
+            // Also add a portion to piggy bank
+            if (!_state.piggyBankBroken) {
+              final piggyAmount = dmReward * 0.1; // 10% goes to piggy bank
+              addToPiggyBank(piggyAmount);
+            }
           case ExpeditionRewardType.researchBoost:
             _state.researchSpeedBonus += reward.amount;
             // TODO: Make temporary
@@ -1228,6 +1526,105 @@ class GameProvider extends ChangeNotifier {
     _saveGame();
     notifyListeners();
     return true;
+  }
+  
+  /// Activate FREE time warp (from ads, rewards, founder's pack - no DM cost)
+  void activateFreeTimeWarp({int hours = 1}) {
+    // Calculate energy gain (no DM deduction)
+    final energyGain = _state.energyPerSecond * 3600 * hours;
+    _state.energy += energyGain;
+    _state.totalEnergyEarned += energyGain;
+    
+    // Advance research timer if research is in progress
+    _advanceResearchByTime(hours);
+    
+    HapticService.heavyImpact();
+    AudioService.playPurchase();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // COSMETICS SYSTEM
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Get currently active theme
+  String? get activeTheme => _state.activeTheme;
+  
+  /// Get currently active border
+  String? get activeBorder => _state.activeBorder;
+  
+  /// Get currently active particles
+  String? get activeParticles => _state.activeParticles;
+  
+  /// Get list of owned cosmetics
+  List<String> get ownedCosmetics => _state.ownedCosmetics;
+  
+  /// Check if a cosmetic is owned
+  bool ownsCosmetic(String cosmeticId) => _state.ownedCosmetics.contains(cosmeticId);
+  
+  /// Equip a theme (must be owned)
+  bool equipTheme(String? themeId) {
+    if (themeId != null && !_state.ownedCosmetics.contains(themeId)) return false;
+    _state.activeTheme = themeId;
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Equip a border (must be owned)
+  bool equipBorder(String? borderId) {
+    if (borderId != null && !_state.ownedCosmetics.contains(borderId)) return false;
+    _state.activeBorder = borderId;
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Equip particles effect (must be owned)
+  bool equipParticles(String? particlesId) {
+    if (particlesId != null && !_state.ownedCosmetics.contains(particlesId)) return false;
+    _state.activeParticles = particlesId;
+    _saveGame();
+    notifyListeners();
+    return true;
+  }
+  
+  /// Add a cosmetic to owned list (from purchase)
+  void addCosmetic(String cosmeticId) {
+    if (!_state.ownedCosmetics.contains(cosmeticId)) {
+      _state.ownedCosmetics.add(cosmeticId);
+      _saveGame();
+      notifyListeners();
+    }
+  }
+  
+  /// Get theme color override (if theme is active)
+  Color? getThemeColor() {
+    switch (_state.activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFD700); // Gold
+      case 'void_purple':
+        return const Color(0xFF9C27B0); // Purple
+      case 'omega_void':
+        return const Color(0xFF1A1A2E); // Deep void blue
+      default:
+        return null; // Use era default
+    }
+  }
+  
+  /// Get accent color for active theme
+  Color? getThemeAccentColor() {
+    switch (_state.activeTheme) {
+      case 'stellar_gold':
+        return const Color(0xFFFFA000); // Amber accent
+      case 'void_purple':
+        return const Color(0xFFE040FB); // Pink accent
+      case 'omega_void':
+        return const Color(0xFF00BCD4); // Cyan accent
+      default:
+        return null;
+    }
   }
   
   /// Activate production boost (from ads or purchase)
@@ -1386,13 +1783,28 @@ class GameProvider extends ChangeNotifier {
     }
   }
   
-  /// Initialize daily challenges
+  /// Get current player progress for challenge scaling
+  PlayerProgress _getPlayerProgress() {
+    return PlayerProgress(
+      kardashevLevel: _state.kardashevLevel,
+      currentEra: _state.currentEra,
+      energyPerSecond: _state.energyPerSecond,
+      prestigeCount: _state.prestigeCount,
+      totalGenerators: _state.generators.values.fold(0, (a, b) => a + b),
+      totalEnergyEarned: _state.totalEnergyEarned,
+    );
+  }
+  
+  /// Initialize daily challenges - NOW WITH DYNAMIC SCALING!
   void _initializeDailyChallenges() {
     final now = DateTime.now();
     final endOfDay = DateTime(now.year, now.month, now.day + 1);
     final seed = _state.prestigeCount;
     
-    final challenges = generateDailyChallenges(seed);
+    // Pass player progress for dynamic scaling
+    final progress = _getPlayerProgress();
+    final challenges = generateDailyChallenges(seed, progress: progress);
+    
     _dailyChallenges = challenges.map((c) => ActiveChallenge(
       challenge: c,
       startTime: now,
@@ -1411,14 +1823,17 @@ class GameProvider extends ChangeNotifier {
     }
   }
   
-  /// Initialize weekly challenges
+  /// Initialize weekly challenges - NOW MUCH HARDER WITH DYNAMIC SCALING!
   void _initializeWeeklyChallenges() {
     final now = DateTime.now();
     final daysUntilMonday = (8 - now.weekday) % 7;
     final nextMonday = DateTime(now.year, now.month, now.day + (daysUntilMonday == 0 ? 7 : daysUntilMonday));
     final seed = _state.prestigeCount;
     
-    final challenges = generateWeeklyChallenges(seed);
+    // Pass player progress for dynamic scaling
+    final progress = _getPlayerProgress();
+    final challenges = generateWeeklyChallenges(seed, progress: progress);
+    
     _weeklyChallenges = challenges.map((c) => ActiveChallenge(
       challenge: c,
       startTime: now,
@@ -1485,32 +1900,47 @@ class GameProvider extends ChangeNotifier {
         challenge.updateProgress(challenge.currentProgress + amount);
       case ChallengeObjective.playTime:
         challenge.updateProgress(_state.playTimeSeconds / 60);
+      case ChallengeObjective.prestige:
+        // Tracked when prestige is performed
+        challenge.updateProgress(challenge.currentProgress + amount);
+      case ChallengeObjective.upgradeGenerators:
+        challenge.updateProgress(challenge.currentProgress + amount);
     }
   }
   
-  /// Claim a completed challenge reward
+  /// Claim a completed challenge reward - NOW WITH SCALED REWARDS!
   bool claimChallengeReward(ActiveChallenge activeChallenge) {
     if (!activeChallenge.isCompleted || activeChallenge.isClaimed) {
       return false;
     }
     
-    // Apply rewards
+    // Get current progress for scaled rewards
+    final progress = _getPlayerProgress();
+    
+    // Apply rewards - use scaled amounts based on player progress
     for (final reward in activeChallenge.challenge.rewards) {
+      final scaledAmount = reward.getAmount(progress);
+      
       switch (reward.type) {
         case ChallengeRewardType.energy:
-          _state.energy += reward.amount;
-          _state.totalEnergyEarned += reward.amount;
+          _state.energy += scaledAmount;
+          _state.totalEnergyEarned += scaledAmount;
         case ChallengeRewardType.darkMatter:
-          _state.darkMatter += reward.amount * (1 + _state.darkMatterBonus);
+          _state.darkMatter += scaledAmount * (1 + _state.darkMatterBonus);
+        case ChallengeRewardType.darkEnergy:
+          // Dark Energy is premium prestige currency
+          _state.darkEnergy += scaledAmount;
         case ChallengeRewardType.productionBoost:
-          _applyProductionBoost(reward.amount, const Duration(minutes: 30));
+          // Duration scales with boost amount: 2x = 30m, 3x = 1h, 4x = 1.5h, 5x = 2h
+          final durationMinutes = (scaledAmount * 30).clamp(15, 120).toInt();
+          _applyProductionBoost(scaledAmount, Duration(minutes: durationMinutes));
         case ChallengeRewardType.timeWarp:
           // Give instant energy equivalent to X hours of production
-          final energyGain = _state.energyPerSecond * 3600 * reward.amount;
+          final energyGain = _state.energyPerSecond * 3600 * scaledAmount;
           _state.energy += energyGain;
           _state.totalEnergyEarned += energyGain;
           // Also advance research timer
-          _advanceResearchByTime(reward.amount.toInt());
+          _advanceResearchByTime(scaledAmount.toInt());
       }
     }
     
@@ -1676,6 +2106,9 @@ class GameProvider extends ChangeNotifier {
     
     // Clear research state
     _clearResearchState();
+    
+    // Invalidate EPS cache as research may affect production
+    _invalidateEpsCache();
     
     AudioService.playResearchComplete();
     HapticService.heavyImpact();
@@ -1976,8 +2409,14 @@ class GameProvider extends ChangeNotifier {
     _pendingAchievementNotifications.clear();
     _currentAchievementNotification = null;
     
+    // Invalidate EPS cache after prestige (production completely reset)
+    _invalidateEpsCache();
+    
     AudioService.playPrestige();
     HapticService.heavyImpact();
+    
+    // Track prestige for weekly challenge
+    _updateChallengeProgress(ChallengeObjective.prestige, 1);
     
     // Trigger prestige welcome back bundle
     try {
@@ -2047,13 +2486,64 @@ class GameProvider extends ChangeNotifier {
     return getCurrentPrestigeTier(_state.prestigeTier);
   }
   
-  /// Format large numbers with edge case handling
-  static String formatNumber(double value) {
+  /// Current number format setting (cached from state)
+  static int _numberFormat = 0;
+  
+  /// Update number format setting
+  static void setNumberFormat(int format) {
+    _numberFormat = format;
+  }
+  
+  /// Get current number format
+  static int getNumberFormat() => _numberFormat;
+  
+  /// Get number format name
+  static String getNumberFormatName(int format) {
+    switch (format) {
+      case 0:
+        return 'Standard (1.23M)';
+      case 1:
+        return 'Scientific (1.23e6)';
+      case 2:
+        return 'Engineering (1.23×10⁶)';
+      default:
+        return 'Standard (1.23M)';
+    }
+  }
+  
+  /// Format large numbers with edge case handling and format options
+  static String formatNumber(double value, {int? formatOverride}) {
+    final format = formatOverride ?? _numberFormat;
+    
     // Edge case handling for NaN, Infinity, and negative values
     if (value.isNaN || value.isInfinite) return '0';
-    if (value < 0) return '-${formatNumber(-value)}';
+    if (value < 0) return '-${formatNumber(-value, formatOverride: format)}';
     if (value == 0) return '0';
     
+    // Scientific notation format (format == 1)
+    if (format == 1) {
+      if (value < 1000) return value.toStringAsFixed(1);
+      return value.toStringAsExponential(2);
+    }
+    
+    // Engineering notation format (format == 2) - powers of 10^3
+    if (format == 2) {
+      if (value < 1000) return value.toStringAsFixed(1);
+      int exp = 0;
+      double mantissa = value;
+      while (mantissa >= 1000 && exp < 120) {
+        mantissa /= 1000;
+        exp += 3;
+      }
+      final superscripts = {
+        0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴',
+        5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹'
+      };
+      String expStr = exp.toString().split('').map((c) => superscripts[int.parse(c)] ?? c).join();
+      return '${mantissa.toStringAsFixed(2)}×10$expStr';
+    }
+    
+    // Standard format (format == 0, default)
     if (value < 1000) return value.toStringAsFixed(1);
     if (value < 999.995e3) return '${(value / 1e3).toStringAsFixed(2)}K';
     if (value < 999.995e6) return '${(value / 1e6).toStringAsFixed(2)}M';
@@ -2207,6 +2697,11 @@ class GameProvider extends ChangeNotifier {
     }
     if (achievement.darkMatterReward > 0) {
       _state.darkMatter += achievement.darkMatterReward;
+      // Also add a portion to piggy bank
+      if (!_state.piggyBankBroken) {
+        final piggyAmount = achievement.darkMatterReward * 0.15; // 15% goes to piggy bank
+        addToPiggyBank(piggyAmount);
+      }
     }
     
     _state.claimedAchievements.add(achievementId);
@@ -2310,6 +2805,29 @@ class GameProvider extends ChangeNotifier {
     _saveGame();
     notifyListeners();
   }
+  
+  /// Set haptic intensity (0-3)
+  void setHapticIntensity(int intensity) {
+    _state.hapticIntensity = intensity.clamp(0, 3);
+    _state.hapticsEnabled = intensity > 0;
+    HapticService.setIntensity(intensity);
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Get current haptic intensity
+  int get hapticIntensity => _state.hapticIntensity;
+  
+  /// Set number format (0=standard, 1=scientific, 2=engineering)
+  void updateNumberFormat(int format) {
+    _state.numberFormat = format.clamp(0, 2);
+    GameProvider.setNumberFormat(format);
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Get current number format
+  int get numberFormat => _state.numberFormat;
   
   void toggleNotifications() {
     _state.notificationsEnabled = !_state.notificationsEnabled;

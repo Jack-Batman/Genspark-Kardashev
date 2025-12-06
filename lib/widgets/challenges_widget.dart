@@ -655,6 +655,9 @@ class _ChallengesWidgetState extends State<ChallengesWidget>
           case ChallengeRewardType.darkMatter:
             icon = Icons.dark_mode;
             color = Colors.purple;
+          case ChallengeRewardType.darkEnergy:
+            icon = Icons.auto_awesome;
+            color = Colors.deepPurple;
           case ChallengeRewardType.productionBoost:
             icon = Icons.speed;
             color = Colors.orange;

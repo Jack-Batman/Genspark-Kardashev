@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import '../models/daily_reward.dart';
 import '../providers/game_provider.dart';
 
-/// Daily Login Reward Dialog
+/// Daily Login Reward Dialog - Now shows scaled rewards based on player progress!
 class DailyRewardDialog extends StatelessWidget {
   final DailyReward reward;
   final int currentStreak;
   final int totalLoginDays;
   final VoidCallback onClaim;
   final VoidCallback onDismiss;
+  
+  // Player progress for scaling rewards display
+  final double energyPerSecond;
+  final double kardashevLevel;
+  final int currentEra;
+  final int prestigeCount;
 
   const DailyRewardDialog({
     super.key,
@@ -17,7 +23,20 @@ class DailyRewardDialog extends StatelessWidget {
     required this.totalLoginDays,
     required this.onClaim,
     required this.onDismiss,
+    this.energyPerSecond = 1.0,
+    this.kardashevLevel = 0.0,
+    this.currentEra = 0,
+    this.prestigeCount = 0,
   });
+  
+  // Get scaled energy reward
+  double get scaledEnergyReward => reward.getEnergyReward(energyPerSecond, kardashevLevel);
+  
+  // Get scaled dark matter reward
+  double get scaledDarkMatterReward => reward.getDarkMatterReward(currentEra, kardashevLevel);
+  
+  // Get scaled dark energy reward
+  double get scaledDarkEnergyReward => reward.getDarkEnergyReward(prestigeCount);
 
   @override
   Widget build(BuildContext context) {
@@ -343,9 +362,9 @@ class DailyRewardDialog extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
-        if (reward.darkMatterReward > 0)
+        if (reward.darkMatterRewardBase > 0)
           Text(
-            '🌑${reward.darkMatterReward.toInt()}',
+            '🌑${reward.darkMatterRewardBase.toInt()}',
             style: TextStyle(
               fontSize: 8,
               color: Colors.purple.shade200,
@@ -353,7 +372,7 @@ class DailyRewardDialog extends StatelessWidget {
           )
         else
           Text(
-            '⚡${_formatShort(reward.energyReward)}',
+            '⚡${reward.energyRewardBase.toInt()}m',
             style: TextStyle(
               fontSize: 8,
               color: Colors.white.withValues(alpha: 0.4),
@@ -393,22 +412,31 @@ class DailyRewardDialog extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              if (reward.energyReward > 0) ...[
+              if (scaledEnergyReward > 0) ...[
                 _buildRewardItem(
                   '⚡',
-                  GameProvider.formatNumber(reward.energyReward * multiplier),
+                  GameProvider.formatNumber(scaledEnergyReward * multiplier),
                   'Energy',
                   Colors.amber,
                 ),
               ],
-              if (reward.energyReward > 0 && reward.darkMatterReward > 0)
+              if (scaledEnergyReward > 0 && scaledDarkMatterReward > 0)
                 const SizedBox(width: 24),
-              if (reward.darkMatterReward > 0) ...[
+              if (scaledDarkMatterReward > 0) ...[
                 _buildRewardItem(
                   '🌑',
-                  (reward.darkMatterReward * multiplier).toStringAsFixed(0),
+                  (scaledDarkMatterReward * multiplier).toStringAsFixed(0),
                   'Dark Matter',
                   Colors.purple.shade200,
+                ),
+              ],
+              if (scaledDarkEnergyReward > 0) ...[
+                const SizedBox(width: 24),
+                _buildRewardItem(
+                  '✨',
+                  (scaledDarkEnergyReward * multiplier).toStringAsFixed(0),
+                  'Dark Energy',
+                  Colors.deepPurple.shade200,
                 ),
               ],
             ],

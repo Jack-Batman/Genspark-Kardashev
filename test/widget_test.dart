@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kardashev_ascension/main.dart';
+import 'package:flutter_app/main.dart';
 
 void main() {
   testWidgets('Kardashev Ascension app starts', (WidgetTester tester) async {

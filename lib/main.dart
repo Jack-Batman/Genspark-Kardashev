@@ -1,33 +1,25 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+
 import 'core/constants.dart';
+import 'models/game_state.dart';
+import 'models/artifact.dart';
+import 'models/tutorial_state.dart';
 import 'providers/game_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/game_screen.dart';
-import 'widgets/tutorial_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Set preferred orientations
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Initialize Hive for local storage
+  await Hive.initFlutter();
   
-  // Set system UI overlay style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppColors.backgroundDark,
-      systemNavigationBarIconBrightness: Brightness.light,
-    ),
-  );
-  
-  // Initialize tutorial manager
-  await TutorialManager.instance.initialize();
+  // Register Hive adapters
+  Hive.registerAdapter(GameStateAdapter());
+  Hive.registerAdapter(OwnedArtifactAdapter());
+  Hive.registerAdapter(TutorialStateDataAdapter());
   
   runApp(const KardashevApp());
 }
@@ -38,84 +30,47 @@ class KardashevApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => GameProvider(),
+      create: (_) => GameProvider()..initialize(),
       child: MaterialApp(
-        title: 'Kardashev: Ascension',
+        title: 'Kardashev Ascension',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.dark,
           scaffoldBackgroundColor: AppColors.backgroundDark,
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.goldAccent,
-            secondary: AppColors.eraIIEnergy,
+          colorScheme: ColorScheme.dark(
+            primary: AppColors.eraIEnergy,
+            secondary: AppColors.goldAccent,
             surface: AppColors.surfaceDark,
           ),
+          useMaterial3: true,
           fontFamily: 'Roboto',
-          textTheme: const TextTheme(
-            displayLarge: AppTextStyles.displayLarge,
-            displayMedium: AppTextStyles.displayMedium,
-            headlineMedium: AppTextStyles.headlineMedium,
-            bodyLarge: AppTextStyles.bodyLarge,
-            bodyMedium: AppTextStyles.bodyMedium,
-            labelLarge: AppTextStyles.labelLarge,
-          ),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.goldAccent,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-          ),
         ),
-        home: const AppEntry(),
+        home: const AppRoot(),
       ),
     );
   }
 }
 
-/// App Entry - handles splash and game initialization
-class AppEntry extends StatefulWidget {
-  const AppEntry({super.key});
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
 
   @override
-  State<AppEntry> createState() => _AppEntryState();
+  State<AppRoot> createState() => _AppRootState();
 }
 
-class _AppEntryState extends State<AppEntry> {
+class _AppRootState extends State<AppRoot> {
   bool _showSplash = true;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeGame();
-  }
-
-  Future<void> _initializeGame() async {
-    final gameProvider = Provider.of<GameProvider>(context, listen: false);
-    await gameProvider.initialize();
-    setState(() => _isInitialized = true);
-  }
-
-  void _onSplashComplete() {
-    if (_isInitialized) {
-      setState(() => _showSplash = false);
-    } else {
-      // Wait for initialization
-      Future.delayed(const Duration(milliseconds: 500), _onSplashComplete);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     if (_showSplash) {
-      return SplashScreen(onComplete: _onSplashComplete);
+      return SplashScreen(
+        onComplete: () {
+          setState(() {
+            _showSplash = false;
+          });
+        },
+      );
     }
     return const GameScreen();
   }

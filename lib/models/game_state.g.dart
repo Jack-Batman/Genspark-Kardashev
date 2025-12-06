@@ -78,13 +78,17 @@ class GameStateAdapter extends TypeAdapter<GameState> {
           ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
           ?.toList(),
       highestKardashevEver: fields[58] as double,
+      piggyBankDarkMatter: fields[59] == null ? 0.0 : fields[59] as double,
+      piggyBankBroken: fields[60] == null ? false : fields[60] as bool,
+      hapticIntensity: fields[61] == null ? 1 : fields[61] as int,
+      numberFormat: fields[62] == null ? 0 : fields[62] as int,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(59)
+      ..writeByte(63)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -202,7 +206,15 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(57)
       ..write(obj.activeExpeditions)
       ..writeByte(58)
-      ..write(obj.highestKardashevEver);
+      ..write(obj.highestKardashevEver)
+      ..writeByte(59)
+      ..write(obj.piggyBankDarkMatter)
+      ..writeByte(60)
+      ..write(obj.piggyBankBroken)
+      ..writeByte(61)
+      ..write(obj.hapticIntensity)
+      ..writeByte(62)
+      ..write(obj.numberFormat);
   }
 
   @override

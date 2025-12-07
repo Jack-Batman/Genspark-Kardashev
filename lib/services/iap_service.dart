@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
 /// Product types for IAP
 enum ProductType {
@@ -17,8 +18,8 @@ class IAPProduct {
   final String priceString;
   final ProductType type;
   final Map<String, dynamic> rewards;
-  final bool isOneTime; // For founder's pack
-  final String? badge; // "BEST VALUE", "POPULAR", etc.
+  final bool isOneTime;
+  final String? badge;
   
   const IAPProduct({
     required this.id,
@@ -33,7 +34,7 @@ class IAPProduct {
   });
 }
 
-/// Dark Matter packages
+/// Dark Matter packages - IDs must match Google Play Console
 const List<IAPProduct> darkMatterPackages = [
   IAPProduct(
     id: 'dm_starter',
@@ -42,9 +43,7 @@ const List<IAPProduct> darkMatterPackages = [
     price: 0.99,
     priceString: '\$0.99',
     type: ProductType.consumable,
-    rewards: {
-      'darkMatter': 110, // 100 + 10% bonus
-    },
+    rewards: {'darkMatter': 110},
   ),
   IAPProduct(
     id: 'dm_explorer',
@@ -53,9 +52,7 @@ const List<IAPProduct> darkMatterPackages = [
     price: 2.99,
     priceString: '\$2.99',
     type: ProductType.consumable,
-    rewards: {
-      'darkMatter': 345, // 300 + 15% bonus
-    },
+    rewards: {'darkMatter': 345},
     badge: 'POPULAR',
   ),
   IAPProduct(
@@ -65,9 +62,7 @@ const List<IAPProduct> darkMatterPackages = [
     price: 4.99,
     priceString: '\$4.99',
     type: ProductType.consumable,
-    rewards: {
-      'darkMatter': 900, // 750 + 20% bonus
-    },
+    rewards: {'darkMatter': 900},
   ),
   IAPProduct(
     id: 'dm_cosmic',
@@ -76,9 +71,7 @@ const List<IAPProduct> darkMatterPackages = [
     price: 9.99,
     priceString: '\$9.99',
     type: ProductType.consumable,
-    rewards: {
-      'darkMatter': 2500, // 2000 + 25% bonus
-    },
+    rewards: {'darkMatter': 2500},
     badge: 'BEST VALUE',
   ),
   IAPProduct(
@@ -88,13 +81,8 @@ const List<IAPProduct> darkMatterPackages = [
     price: 19.99,
     priceString: '\$19.99',
     type: ProductType.consumable,
-    rewards: {
-      'darkMatter': 6500, // 5000 + 30% bonus
-    },
+    rewards: {'darkMatter': 6500},
   ),
-  // ═══════════════════════════════════════════════════════════════
-  // WHALE-TIER PACKS - Premium offerings for high spenders
-  // ═══════════════════════════════════════════════════════════════
   IAPProduct(
     id: 'dm_galactic_overlord',
     name: 'Galactic Overlord',
@@ -103,7 +91,7 @@ const List<IAPProduct> darkMatterPackages = [
     priceString: '\$49.99',
     type: ProductType.consumable,
     rewards: {
-      'darkMatter': 21000, // 15000 + 40% bonus
+      'darkMatter': 21000,
       'exclusiveBorder': 'galactic_overlord',
       'exclusiveTitle': 'Galactic Overlord',
     },
@@ -117,32 +105,13 @@ const List<IAPProduct> darkMatterPackages = [
     priceString: '\$99.99',
     type: ProductType.consumable,
     rewards: {
-      'darkMatter': 60000, // 40000 + 50% bonus
+      'darkMatter': 60000,
       'exclusiveBorder': 'universal_dominator',
       'exclusiveTitle': 'Universal Dominator',
       'exclusiveAvatar': 'dominator_crown',
       'guaranteedLegendaryArchitect': true,
     },
     badge: 'ELITE',
-  ),
-  IAPProduct(
-    id: 'dm_omega_whale',
-    name: 'Omega Ascendant',
-    description: '100000 Dark Matter + 60% bonus + Era V Theme + Crown',
-    price: 199.99,
-    priceString: '\$199.99',
-    type: ProductType.consumable,
-    rewards: {
-      'darkMatter': 160000, // 100000 + 60% bonus
-      'exclusiveBorder': 'omega_whale_animated',
-      'exclusiveTitle': 'Omega Ascendant',
-      'exclusiveAvatar': 'omega_crown',
-      'exclusiveTheme': 'omega_void',
-      'leaderboardCrown': true,
-      'guaranteedLegendaryArchitect': true,
-      'timeWarps': 10, // 10x 1-hour time warps
-    },
-    badge: 'WHALE',
   ),
 ];
 
@@ -158,7 +127,7 @@ const IAPProduct foundersPack = IAPProduct(
     'darkMatter': 200,
     'guaranteedRareArchitect': true,
     'exclusiveBorder': 'founders_gold',
-    'timeWarps': 3, // 3x 1-hour time warps
+    'timeWarps': 3,
     'removeOneAdPlacement': true,
   },
   isOneTime: true,
@@ -176,12 +145,12 @@ const IAPProduct cosmicMembership = IAPProduct(
   rewards: {
     'dailyRewardMultiplier': 2.0,
     'bonusDailyChallenge': 1,
-    'offlineEfficiencyBonus': 0.5, // +50%
-    'offlineHoursLimit': 24, // 24 hours vs 3 hours
+    'offlineEfficiencyBonus': 0.5,
+    'offlineHoursLimit': 24,
     'freeTimeWarpPerDay': 1,
     'exclusiveBorder': 'cosmic_member',
     'monthlyDarkMatter': 500,
-    'maxExpeditions': 4, // vs 3
+    'maxExpeditions': 4,
   },
 );
 
@@ -205,24 +174,6 @@ const List<IAPProduct> cosmeticItems = [
     type: ProductType.nonConsumable,
     rewards: {'theme': 'void_purple'},
   ),
-  IAPProduct(
-    id: 'particles_cosmic',
-    name: 'Cosmic Particles',
-    description: 'Special tap particle effects',
-    price: 1.99,
-    priceString: '100 DM',
-    type: ProductType.nonConsumable,
-    rewards: {'particles': 'cosmic_burst'},
-  ),
-  IAPProduct(
-    id: 'border_legendary',
-    name: 'Legendary Border',
-    description: 'Animated profile border',
-    price: 1.99,
-    priceString: '100 DM',
-    type: ProductType.nonConsumable,
-    rewards: {'border': 'legendary_animated'},
-  ),
 ];
 
 /// Purchase result
@@ -240,41 +191,250 @@ class PurchaseResult {
   });
 }
 
-/// Service for managing in-app purchases
-/// Note: In production, integrate with in_app_purchase package
+/// Service for managing in-app purchases using Google Play Billing
 class IAPService {
   static final IAPService _instance = IAPService._internal();
   factory IAPService() => _instance;
   IAPService._internal();
   
+  // In-App Purchase instance
+  final InAppPurchase _inAppPurchase = InAppPurchase.instance;
+  
   // Track purchases
   final Set<String> _purchasedProducts = {};
   bool _isInitialized = false;
+  bool _isAvailable = false;
+  
+  // Product details from store
+  final Map<String, ProductDetails> _productDetails = {};
+  
+  // Stream subscription for purchase updates
+  StreamSubscription<List<PurchaseDetails>>? _subscription;
   
   // Callbacks
   Function(PurchaseResult)? onPurchaseCompleted;
+  Function(String)? onPurchaseError;
+  Function()? onPurchasePending;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PRODUCT IDs - These must match your Google Play Console products
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// All product IDs that should be loaded from the store
+  static Set<String> get allProductIds => {
+    // Consumables (Dark Matter)
+    'dm_starter',
+    'dm_explorer',
+    'dm_ascension',
+    'dm_cosmic',
+    'dm_universal',
+    'dm_galactic_overlord',
+    'dm_universal_dominator',
+    // Non-consumables
+    'founders_pack',
+    'theme_stellar',
+    'theme_void',
+    // Subscriptions
+    'cosmic_membership',
+  };
+  
+  // ═══════════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Check if IAP is available
+  bool get isAvailable => _isAvailable;
+  
+  /// Check if founder's pack is available (not yet purchased)
+  bool get isFoundersPackAvailable => !isPurchased(foundersPack.id);
   
   /// Initialize IAP service
   Future<void> initialize() async {
     if (_isInitialized) return;
     
-    // In production: Initialize in_app_purchase
-    // final available = await InAppPurchase.instance.isAvailable();
+    // Skip on web platform
+    if (kIsWeb) {
+      if (kDebugMode) {
+        debugPrint('IAPService: Skipping initialization on web platform');
+      }
+      _isInitialized = true;
+      return;
+    }
     
-    _isInitialized = true;
-    
-    if (kDebugMode) {
-      debugPrint('IAPService initialized (simulation mode)');
+    try {
+      // Check if IAP is available
+      _isAvailable = await _inAppPurchase.isAvailable();
+      
+      if (!_isAvailable) {
+        if (kDebugMode) {
+          debugPrint('IAPService: Store not available');
+        }
+        _isInitialized = true;
+        return;
+      }
+      
+      // Note: Pending purchases are automatically enabled in recent versions
+      // The enablePendingPurchases() method is deprecated and no longer required
+      
+      // Listen for purchase updates
+      _subscription = _inAppPurchase.purchaseStream.listen(
+        _handlePurchaseUpdates,
+        onDone: () => _subscription?.cancel(),
+        onError: (error) {
+          if (kDebugMode) {
+            debugPrint('IAPService: Purchase stream error - $error');
+          }
+        },
+      );
+      
+      // Load product details from store
+      await _loadProducts();
+      
+      _isInitialized = true;
+      
+      if (kDebugMode) {
+        debugPrint('IAPService: Initialized successfully');
+        debugPrint('IAPService: Loaded ${_productDetails.length} products');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('IAPService: Initialization failed - $e');
+      }
+      _isInitialized = true;
     }
   }
+  
+  /// Load products from the store
+  Future<void> _loadProducts() async {
+    try {
+      final ProductDetailsResponse response = 
+          await _inAppPurchase.queryProductDetails(allProductIds);
+      
+      if (response.error != null) {
+        if (kDebugMode) {
+          debugPrint('IAPService: Error loading products - ${response.error}');
+        }
+      }
+      
+      if (response.notFoundIDs.isNotEmpty) {
+        if (kDebugMode) {
+          debugPrint('IAPService: Products not found - ${response.notFoundIDs}');
+        }
+      }
+      
+      // Store product details
+      for (final product in response.productDetails) {
+        _productDetails[product.id] = product;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('IAPService: Failed to load products - $e');
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PURCHASE HANDLING
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Handle purchase updates from the stream
+  void _handlePurchaseUpdates(List<PurchaseDetails> purchases) {
+    for (final purchase in purchases) {
+      _handlePurchase(purchase);
+    }
+  }
+  
+  /// Handle a single purchase update
+  Future<void> _handlePurchase(PurchaseDetails purchase) async {
+    if (purchase.status == PurchaseStatus.pending) {
+      // Purchase is pending (e.g., waiting for payment)
+      onPurchasePending?.call();
+      if (kDebugMode) {
+        debugPrint('IAPService: Purchase pending - ${purchase.productID}');
+      }
+    } else if (purchase.status == PurchaseStatus.error) {
+      // Purchase failed
+      onPurchaseError?.call(purchase.error?.message ?? 'Purchase failed');
+      if (kDebugMode) {
+        debugPrint('IAPService: Purchase error - ${purchase.error?.message}');
+      }
+    } else if (purchase.status == PurchaseStatus.purchased ||
+               purchase.status == PurchaseStatus.restored) {
+      // Purchase successful
+      await _verifyAndDeliverPurchase(purchase);
+    } else if (purchase.status == PurchaseStatus.canceled) {
+      if (kDebugMode) {
+        debugPrint('IAPService: Purchase canceled - ${purchase.productID}');
+      }
+    }
+    
+    // Complete the purchase (required for Android)
+    if (purchase.pendingCompletePurchase) {
+      await _inAppPurchase.completePurchase(purchase);
+    }
+  }
+  
+  /// Verify and deliver the purchase
+  Future<void> _verifyAndDeliverPurchase(PurchaseDetails purchase) async {
+    // In production, you should verify the purchase with your backend server
+    // For now, we'll trust the purchase and deliver the content
+    
+    final product = _findProductById(purchase.productID);
+    if (product == null) {
+      if (kDebugMode) {
+        debugPrint('IAPService: Unknown product - ${purchase.productID}');
+      }
+      return;
+    }
+    
+    // Mark non-consumables as purchased
+    if (product.type == ProductType.nonConsumable || product.isOneTime) {
+      _purchasedProducts.add(product.id);
+    }
+    
+    // Notify about successful purchase
+    final result = PurchaseResult(
+      success: true,
+      product: product,
+      rewards: product.rewards,
+    );
+    onPurchaseCompleted?.call(result);
+    
+    if (kDebugMode) {
+      debugPrint('IAPService: Purchase delivered - ${product.name}');
+    }
+  }
+  
+  /// Find a product by ID
+  IAPProduct? _findProductById(String id) {
+    // Check dark matter packages
+    for (final product in darkMatterPackages) {
+      if (product.id == id) return product;
+    }
+    // Check founder's pack
+    if (foundersPack.id == id) return foundersPack;
+    // Check cosmic membership
+    if (cosmicMembership.id == id) return cosmicMembership;
+    // Check cosmetics
+    for (final product in cosmeticItems) {
+      if (product.id == id) return product;
+    }
+    return null;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // PUBLIC API
+  // ═══════════════════════════════════════════════════════════════
   
   /// Check if a product has been purchased (for non-consumables)
   bool isPurchased(String productId) {
     return _purchasedProducts.contains(productId);
   }
   
-  /// Check if founder's pack is available (not yet purchased)
-  bool get isFoundersPackAvailable => !isPurchased(foundersPack.id);
+  /// Get store price for a product (returns null if not loaded)
+  String? getStorePrice(String productId) {
+    return _productDetails[productId]?.price;
+  }
   
   /// Get all available products
   List<IAPProduct> getAllProducts() {
@@ -296,54 +456,78 @@ class IAPService {
   
   /// Purchase a product
   Future<PurchaseResult> purchaseProduct(IAPProduct product) async {
-    // In production: Use actual IAP flow
-    // final purchaseParam = PurchaseParam(productDetails: productDetails);
-    // await InAppPurchase.instance.buyConsumable(purchaseParam: purchaseParam);
-    
-    // Simulation for development
-    await Future.delayed(const Duration(milliseconds: 800));
-    
-    // Simulate 90% success rate
-    final random = DateTime.now().millisecondsSinceEpoch % 100;
-    final success = random < 90;
-    
-    if (success) {
-      // Mark non-consumables as purchased
+    // Web platform fallback
+    if (kIsWeb) {
+      await Future.delayed(const Duration(milliseconds: 500));
       if (product.type == ProductType.nonConsumable || product.isOneTime) {
         _purchasedProducts.add(product.id);
       }
-      
       final result = PurchaseResult(
         success: true,
         product: product,
         rewards: product.rewards,
       );
-      
       onPurchaseCompleted?.call(result);
-      
-      if (kDebugMode) {
-        debugPrint('Purchase successful: ${product.name}');
-      }
-      
       return result;
-    } else {
+    }
+    
+    if (!_isAvailable) {
       return PurchaseResult(
         success: false,
-        error: 'Purchase failed. Please try again.',
+        error: 'Store not available',
         product: product,
       );
     }
+    
+    // Get product details from store
+    final productDetails = _productDetails[product.id];
+    if (productDetails == null) {
+      return PurchaseResult(
+        success: false,
+        error: 'Product not found in store. Please try again later.',
+        product: product,
+      );
+    }
+    
+    // Create purchase param
+    late PurchaseParam purchaseParam;
+    
+    if (product.type == ProductType.consumable) {
+      purchaseParam = PurchaseParam(productDetails: productDetails);
+      await _inAppPurchase.buyConsumable(purchaseParam: purchaseParam);
+    } else {
+      purchaseParam = PurchaseParam(productDetails: productDetails);
+      await _inAppPurchase.buyNonConsumable(purchaseParam: purchaseParam);
+    }
+    
+    // The actual result will come through the purchase stream
+    // Return a pending result for now
+    return PurchaseResult(
+      success: true,
+      product: product,
+    );
   }
   
   /// Restore purchases (for non-consumables)
   Future<List<String>> restorePurchases() async {
-    // In production: Query past purchases
-    // await InAppPurchase.instance.restorePurchases();
+    if (kIsWeb) {
+      return _purchasedProducts.toList();
+    }
     
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (!_isAvailable) {
+      return [];
+    }
     
-    if (kDebugMode) {
-      debugPrint('Purchases restored: ${_purchasedProducts.length} items');
+    try {
+      await _inAppPurchase.restorePurchases();
+      
+      if (kDebugMode) {
+        debugPrint('IAPService: Restore purchases initiated');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('IAPService: Restore purchases failed - $e');
+      }
     }
     
     return _purchasedProducts.toList();
@@ -361,6 +545,6 @@ class IAPService {
   
   /// Dispose resources
   void dispose() {
-    // In production: Cancel subscriptions
+    _subscription?.cancel();
   }
 }

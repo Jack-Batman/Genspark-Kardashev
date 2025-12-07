@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 /// Rewarded ad placement types
 enum AdPlacement {
@@ -62,8 +64,8 @@ const Map<AdPlacement, AdPlacementConfig> adPlacements = {
   AdPlacement.timedBonusReward: AdPlacementConfig(
     name: 'Bonus Reward',
     description: 'Watch an ad for 5 minutes worth of Energy or Dark Matter',
-    dailyLimit: 10, // More generous limit for timed bonuses
-    cooldown: Duration(minutes: 5), // 5 minute cooldown between claims
+    dailyLimit: 10,
+    cooldown: Duration(minutes: 5),
   ),
 };
 
@@ -80,8 +82,7 @@ class AdResult {
   });
 }
 
-/// Service for managing rewarded video ads
-/// Note: In production, integrate with google_mobile_ads package
+/// Service for managing rewarded video ads using Google Mobile Ads SDK
 class AdService {
   static final AdService _instance = AdService._internal();
   factory AdService() => _instance;
@@ -94,28 +95,167 @@ class AdService {
   // Callbacks
   Function(AdPlacement, bool)? onAdCompleted;
   
-  // Ad unit IDs (replace with real IDs in production)
-  static const String _rewardedAdUnitId = 'ca-app-pub-xxxxx/yyyyy';
+  // ═══════════════════════════════════════════════════════════════
+  // AD UNIT IDs - REPLACE WITH YOUR ACTUAL AD UNIT IDs
+  // ═══════════════════════════════════════════════════════════════
   
-  // Simulated ad state (in production, use actual ad SDK)
-  bool _isAdLoaded = true;
-  bool _isAdLoading = false;
+  /// Test Ad Unit IDs (use these during development)
+  static String get _testRewardedAdUnitId {
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-3940256099942544/5224354917'; // Android test rewarded
+    } else if (Platform.isIOS) {
+      return 'ca-app-pub-3940256099942544/1712485313'; // iOS test rewarded
+    }
+    return '';
+  }
   
-  /// Initialize ad service
-  Future<void> initialize() async {
-    _resetDailyCountsIfNeeded();
-    
-    // In production: Initialize MobileAds
-    // await MobileAds.instance.initialize();
-    // _loadRewardedAd();
-    
+  /// Production Ad Unit IDs - REPLACE THESE WITH YOUR REAL AD UNIT IDs
+  /// Get these from your AdMob dashboard: https://admob.google.com/
+  static String get _productionRewardedAdUnitId {
+    if (Platform.isAndroid) {
+      // TODO: Replace with your Android Rewarded Ad Unit ID
+      return 'ca-app-pub-XXXXXXXXXXXXXXXX/YYYYYYYYYY';
+    } else if (Platform.isIOS) {
+      // TODO: Replace with your iOS Rewarded Ad Unit ID
+      return 'ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ';
+    }
+    return '';
+  }
+  
+  /// Get the appropriate ad unit ID based on build mode
+  static String get rewardedAdUnitId {
+    // Use test ads in debug mode, production ads in release
     if (kDebugMode) {
-      debugPrint('AdService initialized (simulation mode)');
+      return _testRewardedAdUnitId;
+    }
+    return _productionRewardedAdUnitId;
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // REWARDED AD MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+  
+  RewardedAd? _rewardedAd;
+  bool _isRewardedAdLoading = false;
+  int _rewardedLoadAttempts = 0;
+  static const int _maxFailedLoadAttempts = 3;
+  
+  /// Check if rewarded ad is available
+  bool get isAdAvailable => _rewardedAd != null;
+  
+  /// Check if an ad is currently loading
+  bool get isAdLoading => _isRewardedAdLoading;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ═══════════════════════════════════════════════════════════════
+  
+  bool _isInitialized = false;
+  
+  /// Initialize the ad service
+  Future<void> initialize() async {
+    if (_isInitialized) return;
+    
+    // Skip initialization on web platform
+    if (kIsWeb) {
+      if (kDebugMode) {
+        debugPrint('AdService: Skipping initialization on web platform');
+      }
+      _isInitialized = true;
+      return;
+    }
+    
+    try {
+      // Initialize the Mobile Ads SDK
+      await MobileAds.instance.initialize();
+      
+      // Configure test devices (add your test device IDs here)
+      if (kDebugMode) {
+        MobileAds.instance.updateRequestConfiguration(
+          RequestConfiguration(
+            testDeviceIds: [
+              // Add your test device IDs here
+              // You can find your device ID in logcat when running on a device
+            ],
+          ),
+        );
+      }
+      
+      _isInitialized = true;
+      _resetDailyCountsIfNeeded();
+      
+      // Pre-load the first rewarded ad
+      _loadRewardedAd();
+      
+      if (kDebugMode) {
+        debugPrint('AdService: Initialized successfully');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('AdService: Initialization failed - $e');
+      }
     }
   }
   
-  /// Check if ads are available
-  bool get isAdAvailable => _isAdLoaded && !_isAdLoading;
+  /// Load a rewarded ad
+  void _loadRewardedAd() {
+    if (_isRewardedAdLoading || _rewardedAd != null) return;
+    if (kIsWeb) return; // Skip on web
+    
+    _isRewardedAdLoading = true;
+    
+    RewardedAd.load(
+      adUnitId: rewardedAdUnitId,
+      request: const AdRequest(),
+      rewardedAdLoadCallback: RewardedAdLoadCallback(
+        onAdLoaded: (ad) {
+          _rewardedAd = ad;
+          _isRewardedAdLoading = false;
+          _rewardedLoadAttempts = 0;
+          
+          // Set up full screen content callback
+          _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              ad.dispose();
+              _rewardedAd = null;
+              _loadRewardedAd(); // Pre-load next ad
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              if (kDebugMode) {
+                debugPrint('AdService: Failed to show ad - ${error.message}');
+              }
+              ad.dispose();
+              _rewardedAd = null;
+              _loadRewardedAd(); // Try to load another
+            },
+          );
+          
+          if (kDebugMode) {
+            debugPrint('AdService: Rewarded ad loaded');
+          }
+        },
+        onAdFailedToLoad: (error) {
+          _isRewardedAdLoading = false;
+          _rewardedLoadAttempts++;
+          _rewardedAd = null;
+          
+          if (kDebugMode) {
+            debugPrint('AdService: Failed to load rewarded ad - ${error.message}');
+          }
+          
+          // Retry with exponential backoff
+          if (_rewardedLoadAttempts < _maxFailedLoadAttempts) {
+            final delay = Duration(seconds: _rewardedLoadAttempts * 2);
+            Future.delayed(delay, _loadRewardedAd);
+          }
+        },
+      ),
+    );
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // AD DISPLAY & REWARDS
+  // ═══════════════════════════════════════════════════════════════
   
   /// Check if player can watch ad for placement
   bool canWatchAd(AdPlacement placement) {
@@ -138,6 +278,9 @@ class AdService {
       }
     }
     
+    // On web, always return false (ads not supported)
+    if (kIsWeb) return false;
+    
     return isAdAvailable;
   }
   
@@ -152,6 +295,21 @@ class AdService {
     return (config.dailyLimit - todayWatches).clamp(0, config.dailyLimit);
   }
   
+  /// Get cooldown remaining for placement
+  Duration getCooldownRemaining(AdPlacement placement) {
+    final config = adPlacements[placement]!;
+    if (config.cooldown == Duration.zero) return Duration.zero;
+    
+    final watches = _adWatches[placement] ?? [];
+    if (watches.isEmpty) return Duration.zero;
+    
+    final lastWatch = watches.last;
+    final elapsed = DateTime.now().difference(lastWatch);
+    final remaining = config.cooldown - elapsed;
+    
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+  
   /// Show rewarded ad for placement
   /// Returns AdResult with success status
   Future<AdResult> showRewardedAd(AdPlacement placement) async {
@@ -163,46 +321,67 @@ class AdService {
       );
     }
     
-    // In production: Show actual ad
-    // This is a simulation for development
-    _isAdLoading = true;
-    
-    try {
-      // Simulate ad loading/showing delay
+    // Web platform fallback - simulate success for testing
+    if (kIsWeb) {
       await Future.delayed(const Duration(milliseconds: 500));
-      
-      // Simulate 95% success rate (ads sometimes fail)
-      final random = DateTime.now().millisecondsSinceEpoch % 100;
-      final success = random < 95;
-      
-      if (success) {
-        // Record the watch
-        _adWatches[placement] ??= [];
-        _adWatches[placement]!.add(DateTime.now());
+      _recordAdWatch(placement);
+      onAdCompleted?.call(placement, true);
+      return AdResult(success: true, placement: placement);
+    }
+    
+    if (_rewardedAd == null) {
+      // Try to load an ad if none available
+      _loadRewardedAd();
+      return AdResult(
+        success: false,
+        error: 'Ad not ready. Please try again in a moment.',
+        placement: placement,
+      );
+    }
+    
+    // Use a Completer to handle the async ad result
+    final completer = Completer<AdResult>();
+    
+    _rewardedAd!.show(
+      onUserEarnedReward: (ad, reward) {
+        // User earned the reward
+        _recordAdWatch(placement);
         
         if (kDebugMode) {
-          debugPrint('Ad watched successfully: ${placement.name}');
+          debugPrint('AdService: User earned reward - ${reward.amount} ${reward.type}');
         }
         
         onAdCompleted?.call(placement, true);
         
-        return AdResult(
-          success: true,
-          placement: placement,
-        );
-      } else {
-        return AdResult(
+        if (!completer.isCompleted) {
+          completer.complete(AdResult(success: true, placement: placement));
+        }
+      },
+    );
+    
+    // Set a timeout in case the callback doesn't fire
+    Future.delayed(const Duration(seconds: 60), () {
+      if (!completer.isCompleted) {
+        completer.complete(AdResult(
           success: false,
-          error: 'Ad failed to load',
+          error: 'Ad timed out',
           placement: placement,
-        );
+        ));
       }
-    } finally {
-      _isAdLoading = false;
-      // In production: Load next ad
-      // _loadRewardedAd();
-    }
+    });
+    
+    return completer.future;
   }
+  
+  /// Record an ad watch
+  void _recordAdWatch(AdPlacement placement) {
+    _adWatches[placement] ??= [];
+    _adWatches[placement]!.add(DateTime.now());
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // UTILITY METHODS
+  // ═══════════════════════════════════════════════════════════════
   
   /// Reset daily counts at midnight
   void _resetDailyCountsIfNeeded() {
@@ -231,24 +410,53 @@ class AdService {
   static double getRewardAmount(AdPlacement placement, {double baseValue = 0}) {
     switch (placement) {
       case AdPlacement.offlineEarningsDouble:
-        return baseValue * 2; // Double the offline earnings
+        return baseValue * 2;
       case AdPlacement.dailyDarkMatter:
-        return 10; // 10 Dark Matter
+        return 10;
       case AdPlacement.expeditionBoost:
-        return 0.25; // +25% success rate
+        return 0.25;
       case AdPlacement.expeditionRetry:
-        return 1; // 1 retry
+        return 1;
       case AdPlacement.freeTimeWarp:
-        return 1; // 1 hour of production
+        return 1;
       case AdPlacement.challengeExtension:
-        return 2; // 2 hours extension
+        return 2;
       case AdPlacement.timedBonusReward:
-        return baseValue; // 5 minutes of energy production (calculated by caller)
+        return baseValue;
     }
+  }
+  
+  /// Load ad watch data from storage
+  void loadAdWatchData(Map<String, dynamic>? data) {
+    if (data == null) return;
+    
+    for (final placement in AdPlacement.values) {
+      final key = placement.name;
+      if (data.containsKey(key)) {
+        final timestamps = (data[key] as List<dynamic>?)
+            ?.map((e) => DateTime.fromMillisecondsSinceEpoch(e as int))
+            .toList();
+        if (timestamps != null) {
+          _adWatches[placement] = timestamps;
+        }
+      }
+    }
+  }
+  
+  /// Get ad watch data for storage
+  Map<String, dynamic> getAdWatchData() {
+    final data = <String, dynamic>{};
+    for (final entry in _adWatches.entries) {
+      data[entry.key.name] = entry.value
+          .map((e) => e.millisecondsSinceEpoch)
+          .toList();
+    }
+    return data;
   }
   
   /// Dispose resources
   void dispose() {
-    // In production: Dispose ad instances
+    _rewardedAd?.dispose();
+    _rewardedAd = null;
   }
 }

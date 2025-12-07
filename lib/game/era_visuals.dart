@@ -615,45 +615,27 @@ class EraVisuals {
   }
   
   /// Draw Era II - Sun with Dyson structures
+  /// REDESIGNED: Mature, realistic sun with animated sunspots and solar flares
   void _drawSun(Canvas canvas, double techLevel) {
     final sunRadius = 100.0;
     
-    // Massive outer corona
-    for (int i = 5; i > 0; i--) {
-      final coronaRadius = sunRadius + i * 30;
-      canvas.drawCircle(
-        Offset.zero,
-        coronaRadius,
-        Paint()
-          ..color = const Color(0xFFFF6B35).withValues(alpha: 0.1 / i)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 30.0 * i),
-      );
-    }
+    // Layer 1: Deep outer corona with realistic plasma glow
+    _drawSolarCorona(canvas, sunRadius);
     
-    // Solar flares
-    _drawSolarFlares(canvas, sunRadius);
+    // Layer 2: Dynamic solar flares and prominences
+    _drawRealisticSolarFlares(canvas, sunRadius);
     
-    // Sun surface with granulation
-    final sunGradient = RadialGradient(
-      colors: [
-        const Color(0xFFFFFFAA),
-        const Color(0xFFFFD700),
-        const Color(0xFFFF8C00),
-        const Color(0xFFFF4500),
-      ],
-      stops: const [0.0, 0.3, 0.7, 1.0],
-    );
+    // Layer 3: Sun surface with convection granulation
+    _drawSunSurface(canvas, sunRadius);
     
-    canvas.drawCircle(
-      Offset.zero,
-      sunRadius,
-      Paint()..shader = sunGradient.createShader(
-        Rect.fromCircle(center: Offset.zero, radius: sunRadius),
-      ),
-    );
+    // Layer 4: Animated sunspot regions with umbra/penumbra
+    _drawRealisticSunspots(canvas, sunRadius);
     
-    // Sunspots
-    _drawSunspots(canvas, sunRadius);
+    // Layer 5: Surface plasma flow and turbulence
+    _drawSurfacePlasmaFlow(canvas, sunRadius);
+    
+    // Layer 6: Chromosphere edge glow
+    _drawChromosphere(canvas, sunRadius);
     
     // Dyson swarm elements
     if (techLevel > 0.1) {
@@ -666,49 +648,375 @@ class EraVisuals {
     }
   }
   
-  void _drawSolarFlares(Canvas canvas, double radius) {
-    final flarePaint = Paint()
-      ..color = const Color(0xFFFF6B35).withValues(alpha: 0.3);
+  /// Realistic solar corona with streaming plasma
+  void _drawSolarCorona(Canvas canvas, double radius) {
+    // Outer diffuse corona
+    for (int i = 6; i > 0; i--) {
+      final coronaRadius = radius + i * 35;
+      final coronaAlpha = 0.08 / i;
+      
+      // Corona color shifts from yellow-white near sun to red-orange further out
+      final coronaColor = Color.lerp(
+        const Color(0xFFFFE4B5), // Moccasin near sun
+        const Color(0xFFFF4500), // OrangeRed far out
+        i / 6.0,
+      )!;
+      
+      canvas.drawCircle(
+        Offset.zero,
+        coronaRadius,
+        Paint()
+          ..color = coronaColor.withValues(alpha: coronaAlpha)
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, 25.0 * i),
+      );
+    }
     
-    for (int i = 0; i < 8; i++) {
-      final angle = (i / 8) * 2 * pi + _rotation * 0.2;
-      final flareLength = 30 + 20 * sin(_pulse + i);
+    // Coronal streamers - plasma flowing outward
+    final streamerCount = 16;
+    for (int i = 0; i < streamerCount; i++) {
+      final baseAngle = (i / streamerCount) * 2 * pi + _rotation * 0.05;
+      final streamerLength = 60 + 30 * sin(_wavePhase * 0.5 + i * 0.7);
+      final streamerWidth = 8 + 4 * sin(_pulse * 0.3 + i);
       
       final path = Path();
-      path.moveTo(cos(angle) * radius, sin(angle) * radius);
-      path.quadraticBezierTo(
-        cos(angle + 0.1) * (radius + flareLength),
-        sin(angle + 0.1) * (radius + flareLength),
-        cos(angle + 0.05) * (radius + flareLength * 1.5),
-        sin(angle + 0.05) * (radius + flareLength * 1.5),
-      );
-      path.quadraticBezierTo(
-        cos(angle - 0.1) * (radius + flareLength),
-        sin(angle - 0.1) * (radius + flareLength),
-        cos(angle) * radius,
-        sin(angle) * radius,
+      path.moveTo(
+        cos(baseAngle) * (radius + 5),
+        sin(baseAngle) * (radius + 5),
       );
       
-      canvas.drawPath(path, flarePaint);
+      // Wavy streamer path
+      for (double t = 0; t <= 1.0; t += 0.1) {
+        final dist = radius + 5 + streamerLength * t;
+        final wobble = sin(_wavePhase * 2 + t * 4 + i) * 5 * t;
+        final angle = baseAngle + wobble * 0.02;
+        path.lineTo(cos(angle) * dist, sin(angle) * dist);
+      }
+      
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = const Color(0xFFFFD700).withValues(alpha: 0.15)
+          ..strokeWidth = streamerWidth
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+      );
     }
   }
   
-  void _drawSunspots(Canvas canvas, double radius) {
-    final spotPaint = Paint()..color = const Color(0xFF8B4513).withValues(alpha: 0.3);
-    final fixedRandom = Random(42);
+  /// Realistic solar flares - plasma eruptions from the surface
+  void _drawRealisticSolarFlares(Canvas canvas, double radius) {
+    final fixedRandom = Random(314);
+    final flareCount = 6;
     
-    for (int i = 0; i < 5; i++) {
-      final angle = fixedRandom.nextDouble() * 2 * pi + _rotation * 0.1;
-      final dist = fixedRandom.nextDouble() * radius * 0.6;
-      final spotRadius = 5 + fixedRandom.nextDouble() * 10;
+    for (int i = 0; i < flareCount; i++) {
+      // Each flare has different timing for natural look
+      final flarePhase = (_pulse * 0.8 + i * 1.2) % (2 * pi);
+      final flareIntensity = (sin(flarePhase) + 1) / 2; // 0 to 1
       
+      if (flareIntensity < 0.2) continue; // Flare not active
+      
+      final baseAngle = (i / flareCount) * 2 * pi + fixedRandom.nextDouble() * 0.5;
+      final maxHeight = 40 + fixedRandom.nextDouble() * 50;
+      final flareHeight = maxHeight * flareIntensity;
+      final flareWidth = 15 + fixedRandom.nextDouble() * 20;
+      
+      // Draw flare arc (prominence loop)
+      final path = Path();
+      final startAngle = baseAngle - flareWidth * 0.005;
+      final endAngle = baseAngle + flareWidth * 0.005;
+      
+      path.moveTo(cos(startAngle) * radius, sin(startAngle) * radius);
+      
+      // Bezier curve for the flare arc
+      final controlDist = radius + flareHeight * 1.3;
+      final controlAngle = baseAngle + sin(_wavePhase + i) * 0.1;
+      
+      path.quadraticBezierTo(
+        cos(controlAngle) * controlDist,
+        sin(controlAngle) * controlDist,
+        cos(endAngle) * radius,
+        sin(endAngle) * radius,
+      );
+      
+      // Draw flare with gradient-like effect
+      for (int layer = 3; layer > 0; layer--) {
+        final layerAlpha = 0.25 / layer * flareIntensity;
+        final layerWidth = (8 + layer * 4) * flareIntensity;
+        
+        canvas.drawPath(
+          path,
+          Paint()
+            ..color = Color.lerp(
+              const Color(0xFFFFFFE0), // Light yellow core
+              const Color(0xFFFF4500), // OrangeRed outer
+              layer / 3.0,
+            )!.withValues(alpha: layerAlpha)
+            ..strokeWidth = layerWidth
+            ..style = PaintingStyle.stroke
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 5.0 * layer),
+        );
+      }
+      
+      // Hot plasma particles along the flare
+      if (flareIntensity > 0.5) {
+        for (int p = 0; p < 8; p++) {
+          final t = p / 8.0;
+          final particleAngle = startAngle + (endAngle - startAngle) * t;
+          final particleDist = radius + flareHeight * sin(t * pi) * 0.9;
+          final particleX = cos(particleAngle + sin(_pulse * 3 + p) * 0.05) * particleDist;
+          final particleY = sin(particleAngle + sin(_pulse * 3 + p) * 0.05) * particleDist;
+          
+          canvas.drawCircle(
+            Offset(particleX, particleY),
+            2 + sin(_pulse * 5 + p) * 1,
+            Paint()
+              ..color = const Color(0xFFFFFF80).withValues(alpha: 0.6 * flareIntensity)
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+          );
+        }
+      }
+    }
+  }
+  
+  /// Sun surface with convection cell granulation
+  void _drawSunSurface(Canvas canvas, double radius) {
+    // Base sun gradient - photosphere
+    final sunGradient = RadialGradient(
+      center: const Alignment(-0.2, -0.2),
+      radius: 1.0,
+      colors: const [
+        Color(0xFFFFFFF0), // Ivory white hot center
+        Color(0xFFFFEE58), // Bright yellow
+        Color(0xFFFFB300), // Amber
+        Color(0xFFFF8F00), // Dark orange
+        Color(0xFFE65100), // Deep orange at limb
+      ],
+      stops: const [0.0, 0.25, 0.5, 0.75, 1.0],
+    );
+    
+    canvas.drawCircle(
+      Offset.zero,
+      radius,
+      Paint()..shader = sunGradient.createShader(
+        Rect.fromCircle(center: Offset.zero, radius: radius),
+      ),
+    );
+    
+    // Granulation - convection cells on the surface
+    _drawGranulation(canvas, radius);
+  }
+  
+  /// Solar granulation - convection cell pattern
+  void _drawGranulation(Canvas canvas, double radius) {
+    final fixedRandom = Random(628);
+    final cellCount = 80;
+    
+    for (int i = 0; i < cellCount; i++) {
+      // Position on sun surface (spherical projection)
+      final theta = fixedRandom.nextDouble() * pi - pi / 2; // latitude
+      final phi = fixedRandom.nextDouble() * 2 * pi; // longitude
+      
+      // Only draw cells on visible hemisphere
+      final visibleFactor = cos(phi + _rotation * 0.15);
+      if (visibleFactor < 0.1) continue;
+      
+      final x = radius * 0.9 * cos(theta) * sin(phi + _rotation * 0.15);
+      final y = radius * 0.9 * sin(theta);
+      
+      // Cell size varies - larger cells toward center
+      final baseCellSize = 4 + fixedRandom.nextDouble() * 6;
+      final cellSize = baseCellSize * visibleFactor;
+      
+      // Granulation animation - cells brighten and dim
+      final cellPhase = (_pulse * 0.5 + i * 0.3) % (2 * pi);
+      final brightness = 0.7 + 0.3 * sin(cellPhase);
+      
+      // Draw convection cell - bright center, darker edge
       canvas.drawCircle(
-        Offset(cos(angle) * dist, sin(angle) * dist),
-        spotRadius,
-        spotPaint,
+        Offset(x, y),
+        cellSize,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              Color(0xFFFFFFE0).withValues(alpha: 0.3 * brightness * visibleFactor),
+              Color(0xFFFFB300).withValues(alpha: 0.1 * brightness * visibleFactor),
+            ],
+          ).createShader(Rect.fromCircle(center: Offset(x, y), radius: cellSize)),
+      );
+      
+      // Dark intergranular lanes between cells
+      if (fixedRandom.nextDouble() > 0.7) {
+        canvas.drawCircle(
+          Offset(x, y),
+          cellSize,
+          Paint()
+            ..color = const Color(0xFF8B4513).withValues(alpha: 0.08 * visibleFactor)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
+    }
+  }
+  
+  /// Realistic sunspots with umbra, penumbra, and movement
+  void _drawRealisticSunspots(Canvas canvas, double radius) {
+    final fixedRandom = Random(42);
+    final spotCount = 7;
+    
+    for (int i = 0; i < spotCount; i++) {
+      // Sunspots drift across the surface (solar rotation)
+      final baseLon = fixedRandom.nextDouble() * 2 * pi;
+      final lat = (fixedRandom.nextDouble() - 0.5) * 0.6; // ±30° latitude band
+      final lon = baseLon + _rotation * 0.1; // Slow drift
+      
+      // Check visibility (on front hemisphere)
+      final visibleFactor = cos(lon);
+      if (visibleFactor < 0.2) continue;
+      
+      final x = radius * 0.85 * cos(lat) * sin(lon);
+      final y = radius * 0.85 * sin(lat);
+      
+      // Spot size - some spots are larger active regions
+      final isActiveRegion = fixedRandom.nextDouble() > 0.7;
+      final baseSpotSize = isActiveRegion ? 12 + fixedRandom.nextDouble() * 8 : 5 + fixedRandom.nextDouble() * 8;
+      final spotSize = baseSpotSize * visibleFactor;
+      
+      if (spotSize < 3) continue;
+      
+      // Penumbra (outer lighter region)
+      final penumbraSize = spotSize * 1.8;
+      canvas.drawCircle(
+        Offset(x, y),
+        penumbraSize,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              const Color(0xFF5D4037).withValues(alpha: 0.5 * visibleFactor), // Brown center
+              const Color(0xFF8D6E63).withValues(alpha: 0.3 * visibleFactor), // Light brown
+              const Color(0xFFFFB300).withValues(alpha: 0.0), // Fade to surface
+            ],
+            stops: const [0.0, 0.6, 1.0],
+          ).createShader(Rect.fromCircle(center: Offset(x, y), radius: penumbraSize)),
+      );
+      
+      // Penumbra filaments - radial streaks
+      for (int f = 0; f < 12; f++) {
+        final fAngle = (f / 12) * 2 * pi + _rotation * 0.2;
+        final fLength = penumbraSize * 0.4;
+        
+        canvas.drawLine(
+          Offset(x + cos(fAngle) * spotSize * 0.8, y + sin(fAngle) * spotSize * 0.8),
+          Offset(x + cos(fAngle) * (spotSize + fLength), y + sin(fAngle) * (spotSize + fLength)),
+          Paint()
+            ..color = const Color(0xFF4E342E).withValues(alpha: 0.2 * visibleFactor)
+            ..strokeWidth = 1.5
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+      
+      // Umbra (dark center)
+      canvas.drawCircle(
+        Offset(x, y),
+        spotSize,
+        Paint()
+          ..shader = RadialGradient(
+            colors: [
+              const Color(0xFF1A1A1A).withValues(alpha: 0.8 * visibleFactor), // Very dark center
+              const Color(0xFF3E2723).withValues(alpha: 0.6 * visibleFactor), // Dark brown edge
+            ],
+          ).createShader(Rect.fromCircle(center: Offset(x, y), radius: spotSize)),
+      );
+      
+      // Light bridge (bright lane across large spots)
+      if (isActiveRegion && spotSize > 10) {
+        final bridgeAngle = fixedRandom.nextDouble() * pi;
+        canvas.drawLine(
+          Offset(x + cos(bridgeAngle) * spotSize * 0.6, y + sin(bridgeAngle) * spotSize * 0.6),
+          Offset(x - cos(bridgeAngle) * spotSize * 0.6, y - sin(bridgeAngle) * spotSize * 0.6),
+          Paint()
+            ..color = const Color(0xFFFFB300).withValues(alpha: 0.3 * visibleFactor)
+            ..strokeWidth = 2
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+        );
+      }
+    }
+  }
+  
+  /// Surface plasma flow - hot material movement
+  void _drawSurfacePlasmaFlow(Canvas canvas, double radius) {
+    final flowCount = 20;
+    
+    for (int i = 0; i < flowCount; i++) {
+      final angle = (i / flowCount) * 2 * pi + _wavePhase * 0.3;
+      final flowRadius = radius * (0.7 + 0.2 * sin(_pulse * 0.5 + i * 0.8));
+      
+      // Only draw on visible part
+      if (cos(angle) < 0) continue;
+      
+      final x = cos(angle) * flowRadius;
+      final y = sin(angle) * flowRadius * 0.9;
+      
+      // Plasma flow streaks
+      final flowLength = 8 + 6 * sin(_pulse + i);
+      final flowAngle = angle + pi / 2 + sin(_wavePhase + i) * 0.3;
+      
+      canvas.drawLine(
+        Offset(x, y),
+        Offset(x + cos(flowAngle) * flowLength, y + sin(flowAngle) * flowLength),
+        Paint()
+          ..color = const Color(0xFFFFFFE0).withValues(alpha: 0.2)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
     }
   }
+  
+  /// Chromosphere - thin reddish layer at sun's edge
+  void _drawChromosphere(Canvas canvas, double radius) {
+    // Chromospheric rim - reddish glow at the edge
+    canvas.drawCircle(
+      Offset.zero,
+      radius + 3,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            Colors.transparent,
+            const Color(0xFFFF6B6B).withValues(alpha: 0.0),
+            const Color(0xFFFF6B6B).withValues(alpha: 0.4),
+            const Color(0xFFFF4444).withValues(alpha: 0.2),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.92, 0.96, 0.98, 1.0],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: radius + 5)),
+    );
+    
+    // Spicules - small jets from chromosphere
+    final spiculeCount = 30;
+    for (int i = 0; i < spiculeCount; i++) {
+      final angle = (i / spiculeCount) * 2 * pi + _wavePhase * 0.8;
+      final height = 5 + 8 * sin(_pulse * 2 + i * 0.5);
+      
+      final startX = cos(angle) * radius;
+      final startY = sin(angle) * radius;
+      final endX = cos(angle + sin(_wavePhase + i) * 0.02) * (radius + height);
+      final endY = sin(angle + sin(_wavePhase + i) * 0.02) * (radius + height);
+      
+      canvas.drawLine(
+        Offset(startX, startY),
+        Offset(endX, endY),
+        Paint()
+          ..color = const Color(0xFFFF6B6B).withValues(alpha: 0.3)
+          ..strokeWidth = 1.5
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+  
+  // Legacy methods removed - replaced by _drawRealisticSolarFlares and _drawRealisticSunspots
   
   void _drawDysonSwarm(Canvas canvas, double radius, double techLevel) {
     final satelliteCount = (50 * techLevel).round();
@@ -1056,19 +1364,29 @@ class EraVisuals {
   
   void _drawTimelineThreads(Canvas canvas, double techLevel) {
     final threadPaint = Paint()
-      ..color = const Color(0xFFFFD700).withValues(alpha: 0.3)
-      ..strokeWidth = 1;
+      ..color = const Color(0xFFFFD700).withValues(alpha: 0.2)
+      ..strokeWidth = 0.8;
     
-    // Spiraling timeline threads
-    for (int thread = 0; thread < 3; thread++) {
-      final path = Path();
-      final startAngle = thread * 2 * pi / 3;
+    // Small, subtle timeline threads positioned around the edges (not over center)
+    // Reduced from massive spirals to small decorative elements
+    final threadCount = 6;
+    final fixedRandom = Random(333);
+    
+    for (int thread = 0; thread < threadCount; thread++) {
+      // Position threads in a ring around the center, away from the creation point
+      final baseAngle = (thread / threadCount) * 2 * pi;
+      final threadDist = 120 + fixedRandom.nextDouble() * 40; // Far from center
+      final centerX = cos(baseAngle) * threadDist;
+      final centerY = sin(baseAngle) * threadDist;
       
-      for (double t = 0; t < 8 * pi; t += 0.1) {
-        final r = 50 + t * 15;
-        final angle = startAngle + t * 0.5 + _wavePhase;
-        final x = cos(angle) * r;
-        final y = sin(angle) * r * 0.3;
+      final path = Path();
+      
+      // Small spiral at each position
+      for (double t = 0; t < 3 * pi; t += 0.15) {
+        final r = 5 + t * 3; // Much smaller spiral (max ~33 pixels)
+        final angle = t * 0.8 + _wavePhase * 0.5 + thread;
+        final x = centerX + cos(angle) * r;
+        final y = centerY + sin(angle) * r * 0.5; // Flattened
         
         if (t == 0) {
           path.moveTo(x, y);
@@ -1078,6 +1396,15 @@ class EraVisuals {
       }
       
       canvas.drawPath(path, threadPaint);
+      
+      // Small glow at the center of each thread
+      canvas.drawCircle(
+        Offset(centerX, centerY),
+        3,
+        Paint()
+          ..color = const Color(0xFFFFD700).withValues(alpha: 0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
     }
   }
   

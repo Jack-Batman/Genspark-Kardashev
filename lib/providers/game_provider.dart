@@ -3249,6 +3249,220 @@ class GameProvider extends ChangeNotifier {
     return result;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // DEBUG MODE - REMOVE FOR PRODUCTION RELEASE
+  // ═══════════════════════════════════════════════════════════════
+  // To disable debug mode for release builds:
+  // 1. Set _debugModeEnabled = false
+  // 2. Or remove this entire section before Play Store release
+  
+  /// Master switch for debug mode - SET TO FALSE FOR RELEASE BUILDS
+  static const bool _debugModeEnabled = true;
+  
+  /// Check if debug mode is available
+  static bool get isDebugModeAvailable => _debugModeEnabled;
+  
+  /// DEBUG: Add instant energy (scales with current production)
+  void debugAddEnergy(double multiplier) {
+    if (!_debugModeEnabled) return;
+    final amount = max(_state.energyPerSecond * 3600 * multiplier, 1000000.0);
+    _state.energy += amount;
+    _state.totalEnergyEarned += amount;
+    _state.updateKardashevLevel();
+    _invalidateEpsCache();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Add dark matter
+  void debugAddDarkMatter(double amount) {
+    if (!_debugModeEnabled) return;
+    _state.darkMatter += amount;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Add dark energy
+  void debugAddDarkEnergy(double amount) {
+    if (!_debugModeEnabled) return;
+    _state.darkEnergy += amount;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Set Kardashev level directly
+  void debugSetKardashevLevel(double level) {
+    if (!_debugModeEnabled) return;
+    // Calculate required energy for target Kardashev level
+    // K = log10(totalEnergy) / 10 => totalEnergy = 10^(K*10)
+    final requiredEnergy = pow(10, level * 10).toDouble();
+    _state.totalEnergyEarned = requiredEnergy;
+    _state.energy = requiredEnergy;
+    _state.updateKardashevLevel();
+    _invalidateEpsCache();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Unlock specific era instantly
+  void debugUnlockEra(Era era) {
+    if (!_debugModeEnabled) return;
+    if (!_state.unlockedEras.contains(era.index)) {
+      _state.unlockedEras.add(era.index);
+    }
+    _state.currentEra = era.index;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Unlock all eras
+  void debugUnlockAllEras() {
+    if (!_debugModeEnabled) return;
+    for (int i = 0; i < Era.values.length; i++) {
+      if (!_state.unlockedEras.contains(i)) {
+        _state.unlockedEras.add(i);
+      }
+    }
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Complete all research for current era
+  void debugCompleteAllResearch() {
+    if (!_debugModeEnabled) return;
+    final currentEraResearch = getCurrentEraResearch();
+    for (final research in currentEraResearch) {
+      if (!_state.unlockedResearch.contains(research.id)) {
+        _state.unlockedResearch.add(research.id);
+        _applyResearchEffectV2(research.effect);
+      }
+    }
+    _invalidateEpsCache();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Unlock all architects
+  void debugUnlockAllArchitects() {
+    if (!_debugModeEnabled) return;
+    final allArchitects = [...eraIArchitects, ...eraIIArchitects, ...eraIIIArchitects, ...eraIVArchitects];
+    for (final architect in allArchitects) {
+      if (!_state.ownedArchitects.contains(architect.id)) {
+        _state.ownedArchitects.add(architect.id);
+      }
+    }
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Max out all generators for current era
+  void debugMaxGenerators() {
+    if (!_debugModeEnabled) return;
+    final currentGenerators = getCurrentEraGenerators();
+    for (final gen in currentGenerators) {
+      _state.generators[gen.id] = 100;
+      _state.generatorLevels[gen.id] = 50;
+    }
+    _state.updateKardashevLevel();
+    _invalidateEpsCache();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Instant prestige (skip requirements)
+  void debugInstantPrestige() {
+    if (!_debugModeEnabled) return;
+    // Add enough progress to make prestige worthwhile
+    _state.darkEnergy += 100;
+    _state.prestigeCount++;
+    _state.prestigeBonus += 0.5;
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Skip to specific era with appropriate resources
+  void debugSkipToEra(Era targetEra) {
+    if (!_debugModeEnabled) return;
+    
+    // Unlock all eras up to and including target
+    for (int i = 0; i <= targetEra.index; i++) {
+      if (!_state.unlockedEras.contains(i)) {
+        _state.unlockedEras.add(i);
+      }
+    }
+    _state.currentEra = targetEra.index;
+    
+    // Set appropriate Kardashev level for the era
+    double targetK;
+    switch (targetEra) {
+      case Era.planetary:
+        targetK = 0.5;
+      case Era.stellar:
+        targetK = 1.2;
+      case Era.galactic:
+        targetK = 2.2;
+      case Era.universal:
+        targetK = 3.2;
+      case Era.multiversal:
+        targetK = 4.2;
+    }
+    
+    final requiredEnergy = pow(10, targetK * 10).toDouble();
+    _state.totalEnergyEarned = requiredEnergy;
+    _state.energy = requiredEnergy * 0.1; // Give 10% as spendable
+    _state.updateKardashevLevel();
+    
+    // Give appropriate dark matter for the era
+    _state.darkMatter += 500 * (targetEra.index + 1);
+    
+    _invalidateEpsCache();
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Complete current research instantly
+  void debugCompleteCurrentResearch() {
+    if (!_debugModeEnabled) return;
+    if (_currentResearchId == null) return;
+    
+    final research = getResearchNodeById(_currentResearchId!);
+    if (research != null) {
+      _researchProgress = _researchTotal;
+      _completeResearchV2(research);
+      _researchTimer?.cancel();
+    }
+  }
+  
+  /// DEBUG: Give all artifacts
+  void debugGiveAllArtifacts() {
+    if (!_debugModeEnabled) return;
+    for (final artifact in allArtifacts) {
+      if (!_state.ownedArtifactIds.contains(artifact.id)) {
+        _state.ownedArtifactIds.add(artifact.id);
+        _state.artifactAcquiredAt[artifact.id] = DateTime.now().millisecondsSinceEpoch;
+        _state.artifactSources[artifact.id] = 'debug';
+      }
+    }
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Reset ability cooldowns
+  void debugResetCooldowns() {
+    if (!_debugModeEnabled) return;
+    _abilityCooldowns.clear();
+    _abilitiesOnCooldown.clear();
+    notifyListeners();
+  }
+  
+  /// DEBUG: Complete all expeditions instantly
+  void debugCompleteExpeditions() {
+    if (!_debugModeEnabled) return;
+    for (final expedition in _activeExpeditions) {
+      completeExpedition(expedition.expeditionId);
+    }
+  }
+  
   /// Cleanup
   @override
   void dispose() {

@@ -1,0 +1,42 @@
+# Sound effects for Kardashev Ascension
+#
+# Place your sound effect files here:
+#
+# UI Sounds:
+# - click.mp3          (Button click)
+# - tab_switch.mp3     (Tab navigation)
+# - modal_open.mp3     (Dialog/modal open)
+# - modal_close.mp3    (Dialog/modal close)
+#
+# Action Sounds:
+# - tap.mp3            (Energy tap/collect)
+# - purchase.mp3       (Buy generator)
+# - upgrade.mp3        (Upgrade generator)
+# - research_start.mp3 (Start research)
+# - expedition_launch.mp3 (Launch expedition)
+# - ability_activate.mp3  (Architect ability)
+#
+# Reward Sounds:
+# - achievement.mp3        (Achievement unlocked)
+# - research_complete.mp3  (Research finished)
+# - expedition_complete.mp3 (Expedition success)
+# - expedition_failed.mp3  (Expedition failure)
+# - challenge_complete.mp3 (Challenge completed)
+# - daily_reward.mp3       (Daily login reward)
+# - architect_synthesize.mp3 (New architect)
+# - level_up.mp3           (Level up)
+#
+# Milestone Sounds:
+# - prestige.mp3       (Prestige reset)
+# - era_transition.mp3 (Era change)
+# - milestone.mp3      (Major milestone)
+# - kardashev_up.mp3   (Kardashev level up)
+#
+# Other:
+# - error.mp3          (Invalid action)
+# - notification.mp3   (Alert/notification)
+#
+# Recommended: Use royalty-free SFX from:
+# - Freesound.org (Creative Commons)
+# - Pixabay Sound Effects (free)
+# - ZapSplat (free with attribution)

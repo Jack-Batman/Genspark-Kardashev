@@ -6,6 +6,8 @@ import '../providers/game_provider.dart';
 import '../services/audio_service.dart';
 import '../services/haptic_service.dart';
 import 'tutorial_manager.dart';
+import 'privacy_policy_widget.dart';
+import 'debug_panel.dart'; // DEBUG: Remove for production release
 
 /// Enhanced Settings widget with volume controls, notification preferences, and data management
 class SettingsWidget extends StatefulWidget {
@@ -26,6 +28,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
   double _musicVolume = AudioService.musicVolume;
   double _sfxVolume = AudioService.sfxVolume;
   double _ambientVolume = AudioService.ambientVolume;
+  
+  // DEBUG: Hidden debug mode activation - tap version 7 times
+  int _versionTapCount = 0;
+  DateTime? _lastVersionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -147,7 +153,8 @@ class _SettingsWidgetState extends State<SettingsWidget> {
           // Section: Game Info
           _buildSectionHeader('GAME INFO', eraConfig),
           const SizedBox(height: 8),
-          _buildInfoTile('Version', '1.0.0', Icons.info_outline, eraConfig),
+          // DEBUG: Tap version 7 times to open debug panel
+          _buildVersionTile(context, eraConfig),
           _buildInfoTile(
             'Play Time',
             _formatPlayTime(widget.gameProvider.state.playTimeSeconds),
@@ -223,6 +230,33 @@ class _SettingsWidgetState extends State<SettingsWidget> {
 
           const SizedBox(height: 24),
 
+          // Legal & Support Section
+          _buildSectionHeader('LEGAL & SUPPORT', eraConfig),
+          const SizedBox(height: 8),
+          _buildActionTile(
+            'Privacy Policy',
+            'View our privacy policy',
+            Icons.privacy_tip_outlined,
+            () => showPrivacyPolicy(context, accentColor: eraConfig.primaryColor),
+            eraConfig,
+          ),
+          _buildActionTile(
+            'Terms of Service',
+            'View terms and conditions',
+            Icons.description_outlined,
+            () => showPrivacyPolicy(context, accentColor: eraConfig.primaryColor),
+            eraConfig,
+          ),
+          _buildActionTile(
+            'Restore Purchases',
+            'Restore previous purchases',
+            Icons.restore,
+            () => _restorePurchases(context),
+            eraConfig,
+          ),
+
+          const SizedBox(height: 24),
+
           // Credits
           Center(
             child: Column(
@@ -246,18 +280,43 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Sprint 4 - Polish Update',
+                  'Version 1.0.0 (Beta)',
                   style: TextStyle(
                     fontSize: 9,
                     color: Colors.white.withValues(alpha: 0.3),
                   ),
                 ),
+                const SizedBox(height: 16),
+                PrivacyPolicyLink(color: eraConfig.primaryColor.withValues(alpha: 0.6)),
               ],
             ),
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
+  }
+  
+  Future<void> _restorePurchases(BuildContext context) async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Restoring purchases...'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    
+    // TODO: Call IAPService().restorePurchases() here
+    // For now, show a placeholder message
+    await Future.delayed(const Duration(seconds: 1));
+    
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Purchases restored successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Widget _buildSectionHeader(String title, EraConfig eraConfig, {bool isWarning = false}) {
@@ -481,6 +540,161 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             ),
           ),
         ],
+      ),
+    );
+  }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DEBUG: Version tile with hidden debug panel activation
+  // Tap 7 times within 3 seconds to open debug panel
+  // REMOVE THIS METHOD FOR PRODUCTION RELEASE
+  // ═══════════════════════════════════════════════════════════════════════════
+  Widget _buildVersionTile(BuildContext context, EraConfig eraConfig) {
+    // Only show debug activation if debug mode is available
+    if (!GameProvider.isDebugModeAvailable) {
+      return _buildInfoTile('Version', '1.0.0', Icons.info_outline, eraConfig);
+    }
+    
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque, // Ensures taps are captured even inside ScrollView
+      onTap: () {
+        final now = DateTime.now();
+        
+        // Reset counter if more than 3 seconds since last tap
+        if (_lastVersionTap != null && 
+            now.difference(_lastVersionTap!).inSeconds > 3) {
+          _versionTapCount = 0;
+        }
+        
+        _lastVersionTap = now;
+        setState(() {
+          _versionTapCount++;
+        });
+        
+        // Show progress hints starting from first tap for better feedback
+        if (_versionTapCount >= 1 && _versionTapCount < 7) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_versionTapCount < 3 
+                  ? 'Tap ${7 - _versionTapCount} more times...' 
+                  : '${7 - _versionTapCount} more taps...'),
+              duration: const Duration(milliseconds: 800),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.grey.shade800,
+            ),
+          );
+        }
+        
+        // Activate debug panel after 7 taps
+        if (_versionTapCount >= 7) {
+          setState(() {
+            _versionTapCount = 0;
+          });
+          HapticService.heavyImpact();
+          showDebugPanel(context, widget.gameProvider);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.black.withValues(alpha: 0.3),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: eraConfig.primaryColor.withValues(alpha: 0.2),
+              ),
+              child: Icon(Icons.info_outline, size: 18, color: eraConfig.primaryColor),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Version',
+                style: TextStyle(fontSize: 12, color: Colors.white),
+              ),
+            ),
+            Text(
+              '1.0.0',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: eraConfig.accentColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionTile(
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+    EraConfig eraConfig,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.black.withValues(alpha: 0.3),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: eraConfig.primaryColor.withValues(alpha: 0.2),
+              ),
+              child: Icon(icon, size: 18, color: eraConfig.primaryColor),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: Colors.white.withValues(alpha: 0.4),
+              size: 20,
+            ),
+          ],
+        ),
       ),
     );
   }

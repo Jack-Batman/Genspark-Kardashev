@@ -5,7 +5,7 @@ import '../models/prestige_cosmetics.dart';
 import '../providers/game_provider.dart';
 import 'prestige_milestones_widget.dart';
 import 'artifact_collection_widget.dart';
-import 'leaderboard_widget.dart';
+// leaderboard_widget.dart - Coming Soon (will be enabled for full release)
 
 /// Enhanced Statistics Screen Widget
 class StatisticsWidget extends StatefulWidget {
@@ -133,7 +133,120 @@ class _StatisticsWidgetState extends State<StatisticsWidget>
   }
 
   Widget _buildLeaderboardTab(EraConfig eraConfig) {
-    return LeaderboardWidget(gameProvider: widget.gameProvider);
+    // Coming Soon placeholder for beta release
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animated icon container
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    eraConfig.primaryColor.withValues(alpha: 0.2),
+                    eraConfig.accentColor.withValues(alpha: 0.1),
+                  ],
+                ),
+                border: Border.all(
+                  color: eraConfig.primaryColor.withValues(alpha: 0.3),
+                  width: 2,
+                ),
+              ),
+              child: Icon(
+                Icons.leaderboard_outlined,
+                size: 48,
+                color: eraConfig.primaryColor.withValues(alpha: 0.7),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'COMING SOON',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: eraConfig.primaryColor,
+                letterSpacing: 3,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Global Rankings',
+              style: TextStyle(
+                fontFamily: 'Orbitron',
+                fontSize: 14,
+                color: eraConfig.accentColor,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.black.withValues(alpha: 0.3),
+                border: Border.all(
+                  color: eraConfig.primaryColor.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                children: [
+                  Text(
+                    'Compete with players worldwide',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Leaderboards, weekly tournaments, and exclusive rewards will be available in a future update.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withValues(alpha: 0.5),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Feature preview icons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _ComingSoonFeatureChip(
+                  icon: Icons.emoji_events,
+                  label: 'Tournaments',
+                  color: Colors.amber,
+                ),
+                const SizedBox(width: 12),
+                _ComingSoonFeatureChip(
+                  icon: Icons.people,
+                  label: 'Global Rank',
+                  color: Colors.blue,
+                ),
+                const SizedBox(width: 12),
+                _ComingSoonFeatureChip(
+                  icon: Icons.card_giftcard,
+                  label: 'Rewards',
+                  color: Colors.purple,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildOverviewTab(GameState state, EraConfig eraConfig, 
@@ -1791,6 +1904,47 @@ class _EraMilestonesCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════
 // PRESTIGE AVAILABLE CARD (duplicated from game_screen for modularity)
 // ═══════════════════════════════════════════════════════════════
+
+class _ComingSoonFeatureChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  
+  const _ComingSoonFeatureChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: color.withValues(alpha: 0.1),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PrestigeAvailableCard extends StatefulWidget {
   final PrestigeInfo nextPrestige;

@@ -2846,6 +2846,12 @@ class GameProvider extends ChangeNotifier {
   void toggleSound() {
     _state.soundEnabled = !_state.soundEnabled;
     AudioService.setEnabled(_state.soundEnabled);
+    // Also control ambient sounds
+    if (_state.soundEnabled) {
+      AudioService.playEraAmbient(_state.currentEra);
+    } else {
+      AudioService.stopAmbient();
+    }
     _saveGame();
     notifyListeners();
   }

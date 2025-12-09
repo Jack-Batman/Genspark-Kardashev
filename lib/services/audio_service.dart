@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
 /// Era-specific music themes
@@ -6,6 +7,7 @@ enum MusicTheme {
   stellar,     // Era II - Energetic, building momentum
   galactic,    // Era III - Epic, cosmic
   universal,   // Era IV - Transcendent, ethereal
+  multiversal, // Era V - Void, prismatic
   menu,        // Main menu music
 }
 
@@ -19,9 +21,13 @@ enum SoundCategory {
 }
 
 /// Enhanced audio service for game sounds with era-based music
-/// Note: This is an expanded stub for web preview compatibility
-/// For full audio, integrate audioplayers or flutter_soloud package
+/// Implements actual audio playback using audioplayers package
 class AudioService {
+  // Audio players
+  static AudioPlayer? _musicPlayer;
+  static AudioPlayer? _ambientPlayer;
+  static final Map<String, AudioPlayer> _sfxPlayers = {};
+  
   // Volume controls (0.0 - 1.0)
   static double _masterVolume = 1.0;
   static double _musicVolume = 0.7;
@@ -33,6 +39,43 @@ class AudioService {
   static bool _sfxEnabled = true;
   static MusicTheme? _currentMusic;
   static bool _isFading = false;
+  static bool _isInitialized = false;
+  
+  // ═══════════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Initialize audio service
+  static Future<void> initialize() async {
+    if (_isInitialized) return;
+    
+    try {
+      // Create music player with looping
+      _musicPlayer = AudioPlayer();
+      _musicPlayer!.setReleaseMode(ReleaseMode.loop);
+      
+      // Create ambient player with looping
+      _ambientPlayer = AudioPlayer();
+      _ambientPlayer!.setReleaseMode(ReleaseMode.loop);
+      
+      _isInitialized = true;
+      _logAudio('AudioService initialized successfully');
+    } catch (e) {
+      _logAudio('AudioService initialization failed: $e');
+    }
+  }
+  
+  /// Dispose audio resources
+  static void dispose() {
+    _musicPlayer?.dispose();
+    _ambientPlayer?.dispose();
+    for (final player in _sfxPlayers.values) {
+      player.dispose();
+    }
+    _sfxPlayers.clear();
+    _isInitialized = false;
+    _logAudio('AudioService disposed');
+  }
   
   // ═══════════════════════════════════════════════════════════════
   // VOLUME CONTROLS
@@ -44,6 +87,8 @@ class AudioService {
   /// Set master volume
   static void setMasterVolume(double volume) {
     _masterVolume = volume.clamp(0.0, 1.0);
+    _updateMusicVolume();
+    _updateAmbientVolume();
     _logAudio('Master volume: ${(_masterVolume * 100).toInt()}%');
   }
   
@@ -53,7 +98,13 @@ class AudioService {
   /// Set music volume
   static void setMusicVolume(double volume) {
     _musicVolume = volume.clamp(0.0, 1.0);
+    _updateMusicVolume();
     _logAudio('Music volume: ${(_musicVolume * 100).toInt()}%');
+  }
+  
+  static void _updateMusicVolume() {
+    final effectiveVolume = _masterVolume * _musicVolume;
+    _musicPlayer?.setVolume(effectiveVolume);
   }
   
   /// Get SFX volume (0.0 - 1.0)
@@ -71,7 +122,13 @@ class AudioService {
   /// Set ambient volume
   static void setAmbientVolume(double volume) {
     _ambientVolume = volume.clamp(0.0, 1.0);
+    _updateAmbientVolume();
     _logAudio('Ambient volume: ${(_ambientVolume * 100).toInt()}%');
+  }
+  
+  static void _updateAmbientVolume() {
+    final effectiveVolume = _masterVolume * _ambientVolume;
+    _ambientPlayer?.setVolume(effectiveVolume);
   }
   
   // ═══════════════════════════════════════════════════════════════
@@ -124,6 +181,7 @@ class AudioService {
       1 => MusicTheme.stellar,
       2 => MusicTheme.galactic,
       3 => MusicTheme.universal,
+      4 => MusicTheme.multiversal,
       _ => MusicTheme.planetary,
     };
     
@@ -141,29 +199,38 @@ class AudioService {
   }
   
   /// Crossfade to new music track
-  static void _crossfadeToMusic(MusicTheme theme) {
+  static Future<void> _crossfadeToMusic(MusicTheme theme) async {
     if (_isFading) return;
     _isFading = true;
     
     final oldTheme = _currentMusic;
     _currentMusic = theme;
     
-    // Simulated crossfade (placeholder for actual implementation)
     _logAudio('🎵 Crossfading music: ${oldTheme?.name ?? "none"} → ${theme.name}');
     
-    // In a real implementation:
-    // 1. Fade out current track over 1-2 seconds
-    // 2. Start new track at low volume
-    // 3. Fade in new track
+    try {
+      // Stop current music
+      await _musicPlayer?.stop();
+      
+      // Get the track path
+      final trackPath = getMusicTrackPath(theme);
+      
+      // Set volume and play
+      final effectiveVolume = _masterVolume * _musicVolume;
+      await _musicPlayer?.setVolume(effectiveVolume);
+      await _musicPlayer?.play(AssetSource(trackPath.replaceFirst('assets/', '')));
+      
+    } catch (e) {
+      _logAudio('Music playback error: $e');
+    }
     
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _isFading = false;
-    });
+    _isFading = false;
   }
   
   /// Stop all music
   static void stopMusic() {
     if (_currentMusic != null) {
+      _musicPlayer?.stop();
       _logAudio('🎵 Music stopped');
       _currentMusic = null;
     }
@@ -171,12 +238,14 @@ class AudioService {
   
   /// Pause music (e.g., when app backgrounded)
   static void pauseMusic() {
+    _musicPlayer?.pause();
     _logAudio('🎵 Music paused');
   }
   
   /// Resume music
   static void resumeMusic() {
     if (_musicEnabled && _currentMusic != null) {
+      _musicPlayer?.resume();
       _logAudio('🎵 Music resumed');
     }
   }
@@ -185,171 +254,232 @@ class AudioService {
   // SOUND EFFECTS
   // ═══════════════════════════════════════════════════════════════
   
+  /// Play a sound effect by asset path
+  static Future<void> _playSfxAsset(String assetPath) async {
+    if (!_sfxEnabled || _masterVolume == 0 || _sfxVolume == 0) return;
+    
+    try {
+      final player = AudioPlayer();
+      final effectiveVolume = _masterVolume * _sfxVolume;
+      await player.setVolume(effectiveVolume);
+      await player.play(AssetSource(assetPath));
+      
+      // Auto-dispose after playback
+      player.onPlayerComplete.listen((_) {
+        player.dispose();
+      });
+      
+    } catch (e) {
+      _logAudio('SFX playback error: $e');
+    }
+  }
+  
   // UI Sounds
   
   /// Play button click sound
   static void playClick() {
-    _playSfx('click', SoundCategory.ui);
+    _playSfxAsset('audio/sfx/ui_click.mp3');
+    _logAudio('🔊 SFX: click');
   }
   
   /// Play tab switch sound
   static void playTabSwitch() {
-    _playSfx('tab_switch', SoundCategory.ui);
+    _playSfxAsset('audio/sfx/ui_click.mp3');
+    _logAudio('🔊 SFX: tab_switch');
   }
   
   /// Play modal open sound
   static void playModalOpen() {
-    _playSfx('modal_open', SoundCategory.ui);
+    _playSfxAsset('audio/sfx/notification.mp3');
+    _logAudio('🔊 SFX: modal_open');
   }
   
   /// Play modal close sound
   static void playModalClose() {
-    _playSfx('modal_close', SoundCategory.ui);
+    _playSfxAsset('audio/sfx/ui_click.mp3');
+    _logAudio('🔊 SFX: modal_close');
   }
   
   // Action Sounds
   
   /// Play tap/collect energy sound
   static void playTap() {
-    _playSfx('tap', SoundCategory.action);
+    _playSfxAsset('audio/sfx/tap_collect.mp3');
+    _logAudio('🔊 SFX: tap');
   }
   
   /// Play purchase/build sound
   static void playPurchase() {
-    _playSfx('purchase', SoundCategory.action);
+    _playSfxAsset('audio/sfx/purchase.mp3');
+    _logAudio('🔊 SFX: purchase');
   }
   
   /// Play generator upgrade sound
   static void playUpgrade() {
-    _playSfx('upgrade', SoundCategory.action);
+    _playSfxAsset('audio/sfx/upgrade.mp3');
+    _logAudio('🔊 SFX: upgrade');
   }
   
   /// Play research start sound
   static void playResearchStart() {
-    _playSfx('research_start', SoundCategory.action);
+    _playSfxAsset('audio/sfx/ui_click.mp3');
+    _logAudio('🔊 SFX: research_start');
   }
   
   /// Play expedition launch sound
   static void playExpeditionLaunch() {
-    _playSfx('expedition_launch', SoundCategory.action);
+    _playSfxAsset('audio/sfx/expedition_launch.mp3');
+    _logAudio('🔊 SFX: expedition_launch');
   }
   
   /// Play ability activation sound
   static void playAbilityActivate() {
-    _playSfx('ability_activate', SoundCategory.action);
+    _playSfxAsset('audio/sfx/ability_activate.mp3');
+    _logAudio('🔊 SFX: ability_activate');
   }
   
   // Reward Sounds
   
   /// Play achievement unlock sound
   static void playAchievement() {
-    _playSfx('achievement', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/achievement.mp3');
+    _logAudio('🔊 SFX: achievement');
   }
   
   /// Play research complete sound
   static void playResearchComplete() {
-    _playSfx('research_complete', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/research_complete.mp3');
+    _logAudio('🔊 SFX: research_complete');
   }
   
   /// Play expedition complete sound
   static void playExpeditionComplete() {
-    _playSfx('expedition_complete', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/expedition_complete.mp3');
+    _logAudio('🔊 SFX: expedition_complete');
   }
   
   /// Play expedition failed sound
   static void playExpeditionFailed() {
-    _playSfx('expedition_failed', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/expedition_failed.mp3');
+    _logAudio('🔊 SFX: expedition_failed');
   }
   
   /// Play challenge complete sound
   static void playChallengeComplete() {
-    _playSfx('challenge_complete', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/achievement.mp3');
+    _logAudio('🔊 SFX: challenge_complete');
   }
   
   /// Play daily reward sound
   static void playDailyReward() {
-    _playSfx('daily_reward', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/daily_reward.mp3');
+    _logAudio('🔊 SFX: daily_reward');
   }
   
   /// Play architect synthesize sound
   static void playArchitectSynthesize() {
-    _playSfx('architect_synthesize', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/ability_activate.mp3');
+    _logAudio('🔊 SFX: architect_synthesize');
   }
   
   /// Play level up sound
   static void playLevelUp() {
-    _playSfx('level_up', SoundCategory.reward);
+    _playSfxAsset('audio/sfx/level_up.mp3');
+    _logAudio('🔊 SFX: level_up');
   }
   
   // Milestone Sounds
   
   /// Play prestige sound
   static void playPrestige() {
-    _playSfx('prestige', SoundCategory.milestone);
+    _playSfxAsset('audio/sfx/prestige.mp3');
+    _logAudio('🔊 SFX: prestige');
   }
   
   /// Play era transition sound
   static void playEraTransition() {
-    _playSfx('era_transition', SoundCategory.milestone);
+    _playSfxAsset('audio/sfx/era_transition.mp3');
+    _logAudio('🔊 SFX: era_transition');
   }
   
   /// Play milestone reached sound
   static void playMilestone() {
-    _playSfx('milestone', SoundCategory.milestone);
+    _playSfxAsset('audio/sfx/level_up.mp3');
+    _logAudio('🔊 SFX: milestone');
   }
   
   /// Play Kardashev level up sound
   static void playKardashevUp() {
-    _playSfx('kardashev_up', SoundCategory.milestone);
+    _playSfxAsset('audio/sfx/level_up.mp3');
+    _logAudio('🔊 SFX: kardashev_up');
   }
   
   // Error/Info Sounds
   
   /// Play error/invalid action sound
   static void playError() {
-    _playSfx('error', SoundCategory.ui);
+    _playSfxAsset('audio/sfx/error.mp3');
+    _logAudio('🔊 SFX: error');
   }
   
   /// Play notification sound
   static void playNotification() {
-    _playSfx('notification', SoundCategory.ui);
+    _playSfxAsset('audio/sfx/notification.mp3');
+    _logAudio('🔊 SFX: notification');
   }
   
   // ═══════════════════════════════════════════════════════════════
   // AMBIENT SOUNDS
   // ═══════════════════════════════════════════════════════════════
   
+  static int? _currentAmbientEra;
+  
   /// Play ambient sound loop for current era
-  static void playEraAmbient(int eraIndex) {
+  static Future<void> playEraAmbient(int eraIndex) async {
     if (_masterVolume == 0 || _ambientVolume == 0) return;
+    if (_currentAmbientEra == eraIndex) return; // Already playing
     
-    final ambientName = switch (eraIndex) {
-      0 => 'ambient_planetary', // Wind, nature sounds
-      1 => 'ambient_stellar',   // Energy hum, solar winds
-      2 => 'ambient_galactic',  // Space sounds, cosmic
-      3 => 'ambient_universal', // Ethereal, transcendent
-      _ => 'ambient_planetary',
-    };
+    _currentAmbientEra = eraIndex;
     
-    _logAudio('🌌 Ambient: $ambientName (volume: ${(_ambientVolume * _masterVolume * 100).toInt()}%)');
+    try {
+      await _ambientPlayer?.stop();
+      
+      final trackPath = getAmbientTrackPath(eraIndex);
+      final effectiveVolume = _masterVolume * _ambientVolume;
+      
+      await _ambientPlayer?.setVolume(effectiveVolume);
+      await _ambientPlayer?.play(AssetSource(trackPath.replaceFirst('assets/', '')));
+      
+      _logAudio('🌌 Ambient: era $eraIndex started');
+    } catch (e) {
+      _logAudio('Ambient playback error: $e');
+    }
   }
   
   /// Stop ambient sounds
   static void stopAmbient() {
+    _ambientPlayer?.stop();
+    _currentAmbientEra = null;
     _logAudio('🌌 Ambient stopped');
+  }
+  
+  /// Pause ambient sounds
+  static void pauseAmbient() {
+    _ambientPlayer?.pause();
+    _logAudio('🌌 Ambient paused');
+  }
+  
+  /// Resume ambient sounds
+  static void resumeAmbient() {
+    if (_currentAmbientEra != null) {
+      _ambientPlayer?.resume();
+      _logAudio('🌌 Ambient resumed');
+    }
   }
   
   // ═══════════════════════════════════════════════════════════════
   // INTERNAL HELPERS
   // ═══════════════════════════════════════════════════════════════
-  
-  /// Play a sound effect
-  static void _playSfx(String soundName, SoundCategory category) {
-    if (!_sfxEnabled || _masterVolume == 0 || _sfxVolume == 0) return;
-    
-    final effectiveVolume = _masterVolume * _sfxVolume;
-    _logAudio('🔊 SFX: $soundName [${category.name}] (vol: ${(effectiveVolume * 100).toInt()}%)');
-  }
   
   /// Log audio event for debugging
   static void _logAudio(String message) {
@@ -362,33 +492,19 @@ class AudioService {
   // LIFECYCLE
   // ═══════════════════════════════════════════════════════════════
   
-  /// Initialize audio service
-  static Future<void> initialize() async {
-    _logAudio('AudioService initialized');
-    // In a real implementation:
-    // 1. Load audio assets
-    // 2. Initialize audio pools for frequently used sounds
-    // 3. Pre-cache music tracks
-  }
-  
-  /// Dispose audio resources
-  static void dispose() {
-    stopMusic();
-    stopAmbient();
-    _logAudio('AudioService disposed');
-  }
-  
   /// Handle app lifecycle changes
   static void onAppLifecycleStateChange(bool isActive) {
     if (isActive) {
       resumeMusic();
+      resumeAmbient();
     } else {
       pauseMusic();
+      pauseAmbient();
     }
   }
   
   // ═══════════════════════════════════════════════════════════════
-  // MUSIC TRACK INFO (for future implementation)
+  // MUSIC TRACK INFO
   // ═══════════════════════════════════════════════════════════════
   
   /// Get music track file path for theme
@@ -398,7 +514,8 @@ class AudioService {
       MusicTheme.stellar => 'assets/audio/music/stellar_theme.mp3',
       MusicTheme.galactic => 'assets/audio/music/galactic_theme.mp3',
       MusicTheme.universal => 'assets/audio/music/universal_theme.mp3',
-      MusicTheme.menu => 'assets/audio/music/menu_theme.mp3',
+      MusicTheme.multiversal => 'assets/audio/music/multiversal_theme.mp3',
+      MusicTheme.menu => 'assets/audio/music/planetary_theme.mp3', // Use planetary as menu
     };
   }
   
@@ -409,6 +526,7 @@ class AudioService {
       MusicTheme.stellar => 'Stellar Ascension',
       MusicTheme.galactic => 'Galactic Empire',
       MusicTheme.universal => 'Universal Transcendence',
+      MusicTheme.multiversal => 'Void Eternal',
       MusicTheme.menu => 'Kardashev Main Theme',
     };
   }
@@ -420,6 +538,7 @@ class AudioService {
       1 => 'assets/audio/ambient/stellar_ambient.mp3',
       2 => 'assets/audio/ambient/galactic_ambient.mp3',
       3 => 'assets/audio/ambient/universal_ambient.mp3',
+      4 => 'assets/audio/ambient/multiversal_ambient.mp3',
       _ => 'assets/audio/ambient/planetary_ambient.mp3',
     };
   }

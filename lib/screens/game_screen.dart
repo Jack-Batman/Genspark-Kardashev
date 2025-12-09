@@ -1,7 +1,6 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants.dart';
 import '../core/era_data.dart';
 import '../game/kardashev_game.dart';
 
@@ -36,12 +35,13 @@ class GameScreen extends StatefulWidget {
   State<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
+class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, WidgetsBindingObserver {
   late KardashevGame _game;
   int _selectedTab = 0;
   bool _isMenuOpen = false; // Track if the expandable menu is open
   // Entropy assistant removed
   bool _hasShownOfflineDialog = false;
+  int? _lastEraForAudio; // Track era changes for audio
 
   late AnimationController _tabAnimationController;
   late AnimationController _menuAnimationController; // Animation for menu opening/closing
@@ -50,6 +50,9 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _game = KardashevGame();
+    
+    // Register lifecycle observer for audio management
+    WidgetsBinding.instance.addObserver(this);
 
     _tabAnimationController = AnimationController(
       duration: const Duration(milliseconds: 300),
@@ -60,10 +63,30 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 300),
       vsync: this,
     );
+    
+    // Start audio after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _startAudioForCurrentEra();
+    });
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    AudioService.onAppLifecycleStateChange(state == AppLifecycleState.resumed);
+  }
+  
+  void _startAudioForCurrentEra() {
+    final provider = context.read<GameProvider>();
+    final currentEra = provider.state.currentEra;
+    AudioService.playEraMusic(currentEra);
+    AudioService.playEraAmbient(currentEra);
+    _lastEraForAudio = currentEra;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabAnimationController.dispose();
     _menuAnimationController.dispose();
     super.dispose();
@@ -110,6 +133,14 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin {
           generators: gameProvider.state.generators,
           currentEra: gameProvider.state.era,
         );
+        
+        // Update audio when era changes
+        final currentEra = gameProvider.state.currentEra;
+        if (_lastEraForAudio != currentEra) {
+          _lastEraForAudio = currentEra;
+          AudioService.playEraMusic(currentEra);
+          AudioService.playEraAmbient(currentEra);
+        }
 
         _game.onTapCallback = () {
           if (_isMenuOpen) {

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/constants.dart';
 import '../providers/game_provider.dart';
-import '../services/haptic_service.dart';
 import 'glass_container.dart';
 
 /// Piggy Bank Widget - Shows accumulated Dark Matter that can only be collected via purchase

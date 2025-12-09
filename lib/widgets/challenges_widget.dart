@@ -560,7 +560,7 @@ class _ChallengesWidgetState extends State<ChallengesWidget>
                 const SizedBox(height: 8),
                 
                 // Rewards
-                _buildRewardsRow(challenge.rewards, isClaimed),
+                _buildRewardsRow(challenge.rewards, isClaimed, playerProgress: challenge.playerProgress),
               ],
             ),
           ),
@@ -640,7 +640,17 @@ class _ChallengesWidgetState extends State<ChallengesWidget>
     );
   }
   
-  Widget _buildRewardsRow(List<ChallengeReward> rewards, bool isClaimed) {
+  Widget _buildRewardsRow(List<ChallengeReward> rewards, bool isClaimed, {PlayerProgress? playerProgress}) {
+    // Get player progress for scaling rewards display
+    final progress = playerProgress ?? PlayerProgress(
+      kardashevLevel: widget.gameProvider.state.kardashevLevel,
+      currentEra: widget.gameProvider.state.era.index,
+      energyPerSecond: widget.gameProvider.state.energyPerSecond,
+      prestigeCount: widget.gameProvider.state.prestigeCount,
+      totalGenerators: widget.gameProvider.state.totalGenerators,
+      totalEnergyEarned: widget.gameProvider.state.totalEnergyEarned,
+    );
+    
     return Wrap(
       spacing: 8,
       runSpacing: 4,
@@ -666,6 +676,9 @@ class _ChallengesWidgetState extends State<ChallengesWidget>
             color = Colors.cyan;
         }
         
+        // Use getDescription to get formatted reward text with actual amounts
+        final rewardText = reward.getDescription(progress);
+        
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -685,7 +698,7 @@ class _ChallengesWidgetState extends State<ChallengesWidget>
               ),
               const SizedBox(width: 4),
               Text(
-                reward.description,
+                rewardText,
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,

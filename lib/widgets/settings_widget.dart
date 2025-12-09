@@ -5,6 +5,7 @@ import '../core/era_data.dart';
 import '../providers/game_provider.dart';
 import '../services/audio_service.dart';
 import '../services/haptic_service.dart';
+import '../services/cloud_save_service.dart';
 import 'tutorial_manager.dart';
 import 'privacy_policy_widget.dart';
 import 'debug_panel.dart'; // DEBUG: Remove for production release
@@ -147,6 +148,13 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             () => _showImportDialog(context),
             eraConfig,
           ),
+
+          const SizedBox(height: 16),
+
+          // Section: Cloud Save
+          _buildSectionHeader('CLOUD SAVE', eraConfig),
+          const SizedBox(height: 8),
+          _buildCloudSaveSection(eraConfig),
 
           const SizedBox(height: 16),
 
@@ -423,52 +431,53 @@ class _SettingsWidgetState extends State<SettingsWidget> {
     VoidCallback onToggle,
     EraConfig eraConfig,
   ) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.black.withValues(alpha: 0.3),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: eraConfig.primaryColor.withValues(alpha: 0.2),
+    return GestureDetector(
+      onTap: onToggle,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.black.withValues(alpha: 0.3),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: eraConfig.primaryColor.withValues(alpha: 0.2),
+              ),
+              child: Icon(icon, size: 18, color: eraConfig.primaryColor),
             ),
-            child: Icon(icon, size: 18, color: eraConfig.primaryColor),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: Colors.white.withValues(alpha: 0.5),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: Colors.white.withValues(alpha: 0.5),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          GestureDetector(
-            onTap: onToggle,
-            child: AnimatedContainer(
+            AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               width: 48,
               height: 28,
@@ -497,10 +506,155 @@ class _SettingsWidgetState extends State<SettingsWidget> {
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildCloudSaveSection(EraConfig eraConfig) {
+    final isSignedIn = CloudSaveService.isSignedIn;
+    final user = CloudSaveService.currentUser;
+    final status = CloudSaveService.status;
+
+    return Column(
+      children: [
+        // Sign in status
+        Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: Colors.black.withValues(alpha: 0.3),
+            border: Border.all(
+              color: isSignedIn
+                  ? Colors.green.withValues(alpha: 0.3)
+                  : Colors.white.withValues(alpha: 0.1),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSignedIn
+                      ? Colors.green.withValues(alpha: 0.2)
+                      : eraConfig.primaryColor.withValues(alpha: 0.2),
+                ),
+                child: Icon(
+                  isSignedIn ? Icons.cloud_done : Icons.cloud_off,
+                  size: 20,
+                  color: isSignedIn ? Colors.green : eraConfig.primaryColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isSignedIn ? 'Cloud Save Active' : 'Cloud Save Disabled',
+                      style: TextStyle(
+                        fontFamily: 'Orbitron',
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isSignedIn ? Colors.green : Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isSignedIn
+                          ? user?.email ?? 'Guest Account'
+                          : 'Sign in to backup your progress',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.white.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (status == CloudSaveStatus.syncing)
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: eraConfig.primaryColor,
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // Actions
+        if (!isSignedIn) ...[
+          _buildActionButton(
+            'Sign in with Google',
+            'Sync progress across devices',
+            Icons.login,
+            () => _signInWithGoogle(context),
+            eraConfig,
+          ),
+        ] else ...[
+          _buildActionButton(
+            'Sync Now',
+            'Backup current progress to cloud',
+            Icons.sync,
+            () => _syncToCloud(context),
+            eraConfig,
+          ),
+          _buildActionButton(
+            'Sign Out',
+            'Disconnect cloud save',
+            Icons.logout,
+            () => _signOut(context),
+            eraConfig,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _signInWithGoogle(BuildContext context) async {
+    final result = await CloudSaveService.signInWithGoogle();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message ?? 'Sign in result'),
+          backgroundColor: result.success ? Colors.green : Colors.red,
+        ),
+      );
+      setState(() {}); // Refresh UI
+    }
+  }
+
+  Future<void> _syncToCloud(BuildContext context) async {
+    final result = await CloudSaveService.saveToCloud(widget.gameProvider.state);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result.message ?? 'Sync result'),
+          backgroundColor: result.success ? Colors.green : Colors.red,
+        ),
+      );
+      setState(() {}); // Refresh UI
+    }
+  }
+
+  Future<void> _signOut(BuildContext context) async {
+    await CloudSaveService.signOut();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Signed out from cloud save'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      setState(() {}); // Refresh UI
+    }
   }
 
   Widget _buildInfoTile(String title, String value, IconData icon, EraConfig eraConfig) {

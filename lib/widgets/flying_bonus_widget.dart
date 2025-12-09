@@ -7,6 +7,7 @@ import '../providers/game_provider.dart';
 import '../services/audio_service.dart';
 import '../services/haptic_service.dart';
 import 'notification_banner.dart';
+import 'ship_painters.dart';
 
 class FlyingBonusWidget extends StatefulWidget {
   final GameProvider gameProvider;
@@ -24,6 +25,7 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
   // Timers and Controllers
   Timer? _spawnTimer;
   late AnimationController _flightController;
+  late AnimationController _shipAnimationController; // For ship internal animations
   late Animation<double> _positionAnimation;
   
   // State
@@ -36,16 +38,23 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
   static const int _spawnIntervalSeconds = 3 * 60; // 3 minutes
   // static const int _spawnIntervalSeconds = 15; // Debug: 15 seconds
   static const int _flightDurationSeconds = 8; // How long it takes to cross screen
+  static const double _shipSize = 80.0; // Size of the premium ship
 
   @override
   void initState() {
     super.initState();
 
-    // Initialize animation controller
+    // Initialize animation controller for flight path
     _flightController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: _flightDurationSeconds),
     );
+
+    // Initialize animation controller for ship internal animations (engines, glow, etc.)
+    _shipAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
 
     _flightController.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
@@ -61,6 +70,7 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
   void dispose() {
     _spawnTimer?.cancel();
     _flightController.dispose();
+    _shipAnimationController.dispose();
     super.dispose();
   }
 
@@ -98,8 +108,8 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
 
     _flightController.forward(from: 0.0);
     
-    // Play sound hint (faint engine sound or sparkle)
-    // AudioService.playAmbientEvent(); // Assuming this exists or similar
+    // Play notification sound when ship appears
+    AudioService.playNotification();
   }
 
   void _resetObject() {
@@ -215,22 +225,20 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
   }
 
   Widget _buildExplosion() {
+    final eraConfig = widget.gameProvider.state.eraConfig;
+    
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.0, end: 1.0),
-      duration: const Duration(milliseconds: 400),
+      duration: const Duration(milliseconds: 500),
       builder: (context, value, child) {
-        return Opacity(
-          opacity: 1.0 - value,
-          child: Transform.scale(
-            scale: 1.0 + (value * 2),
-            child: Container(
-              width: 60,
-              height: 60,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white,
-              ),
-              child: const Icon(Icons.star, color: Colors.orange, size: 40),
+        return SizedBox(
+          width: _shipSize * 2,
+          height: _shipSize * 2,
+          child: CustomPaint(
+            painter: _CollectionExplosionPainter(
+              progress: value,
+              primaryColor: eraConfig.primaryColor,
+              accentColor: eraConfig.accentColor,
             ),
           ),
         );
@@ -239,57 +247,142 @@ class _FlyingBonusWidgetState extends State<FlyingBonusWidget> with TickerProvid
   }
 
   Widget _buildSpaceship(Era era) {
-    String emoji;
-    Color glowColor;
-    
-    switch (era) {
-      case Era.planetary:
-        emoji = '🛸'; // UFO
-        glowColor = Colors.cyan;
-        break;
-      case Era.stellar:
-        emoji = '🚀'; // Rocket
-        glowColor = Colors.orange;
-        break;
-      case Era.galactic:
-        emoji = '🛰️'; // Satellite/Station
-        glowColor = Colors.purple;
-        break;
-      case Era.universal:
-        emoji = '💠'; // Energy shape
-        glowColor = Colors.pink;
-        break;
-      case Era.multiversal:
-        emoji = '🌀'; // Vortex
-        glowColor = Colors.cyanAccent;
-        break;
-    }
-
-    // Determine rotation based on direction
-    // 🛸 doesn't need much rotation, 🚀 points up usually (45 deg)
-    // Let's just rotate slightly for effect or flip if needed
-    
-    return Container(
-      width: 60,
-      height: 60,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: glowColor.withValues(alpha: 0.6),
-            blurRadius: 20,
-            spreadRadius: 5,
-          )
-        ],
-      ),
-      child: Transform.scale(
-        scale: _flightDirectionRight ? 1.0 : -1.0, // Flip horizontally if going left
-        child: Text(
-          emoji,
-          style: const TextStyle(fontSize: 40),
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: _shipAnimationController,
+      builder: (context, child) {
+        return SizedBox(
+          width: _shipSize,
+          height: _shipSize,
+          child: CustomPaint(
+            size: Size(_shipSize, _shipSize),
+            painter: ShipPainter.forEra(
+              era,
+              animationValue: _shipAnimationController.value,
+              isMovingRight: _flightDirectionRight,
+            ),
+          ),
+        );
+      },
     );
+  }
+}
+
+/// Premium collection explosion effect painter
+class _CollectionExplosionPainter extends CustomPainter {
+  final double progress;
+  final Color primaryColor;
+  final Color accentColor;
+  
+  _CollectionExplosionPainter({
+    required this.progress,
+    required this.primaryColor,
+    required this.accentColor,
+  });
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius = size.width / 2;
+    
+    // Multiple expanding rings
+    for (int i = 0; i < 3; i++) {
+      final ringProgress = (progress - i * 0.15).clamp(0.0, 1.0);
+      final ringRadius = ringProgress * maxRadius;
+      final ringAlpha = (1.0 - ringProgress) * 0.6;
+      
+      // Outer glow
+      canvas.drawCircle(
+        center,
+        ringRadius,
+        Paint()
+          ..color = primaryColor.withValues(alpha: ringAlpha * 0.3)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
+      );
+      
+      // Ring
+      canvas.drawCircle(
+        center,
+        ringRadius,
+        Paint()
+          ..color = accentColor.withValues(alpha: ringAlpha)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3 * (1 - ringProgress),
+      );
+    }
+    
+    // Energy particles flying outward
+    final particleCount = 16;
+    for (int i = 0; i < particleCount; i++) {
+      final angle = (i / particleCount) * 2 * pi;
+      final particleProgress = progress;
+      final distance = particleProgress * maxRadius * 0.8;
+      final particleAlpha = (1 - particleProgress) * 0.8;
+      
+      final px = center.dx + cos(angle) * distance;
+      final py = center.dy + sin(angle) * distance;
+      
+      // Particle trail
+      final trailLength = 15 * (1 - particleProgress);
+      canvas.drawLine(
+        Offset(px, py),
+        Offset(
+          px - cos(angle) * trailLength,
+          py - sin(angle) * trailLength,
+        ),
+        Paint()
+          ..color = accentColor.withValues(alpha: particleAlpha * 0.5)
+          ..strokeWidth = 2
+          ..strokeCap = StrokeCap.round,
+      );
+      
+      // Particle
+      canvas.drawCircle(
+        Offset(px, py),
+        3 * (1 - particleProgress * 0.5),
+        Paint()
+          ..color = Colors.white.withValues(alpha: particleAlpha)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
+    
+    // Central flash
+    final flashAlpha = (1 - progress * 2).clamp(0.0, 1.0);
+    if (flashAlpha > 0) {
+      canvas.drawCircle(
+        center,
+        30 * (1 - progress),
+        Paint()
+          ..color = Colors.white.withValues(alpha: flashAlpha)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
+    }
+    
+    // Star burst
+    if (progress < 0.5) {
+      final starProgress = progress * 2;
+      final starAlpha = (1 - starProgress) * 0.8;
+      
+      for (int i = 0; i < 8; i++) {
+        final angle = (i / 8) * 2 * pi;
+        final starLength = 25 * (1 + starProgress);
+        
+        canvas.drawLine(
+          center,
+          Offset(
+            center.dx + cos(angle) * starLength,
+            center.dy + sin(angle) * starLength,
+          ),
+          Paint()
+            ..color = accentColor.withValues(alpha: starAlpha)
+            ..strokeWidth = 2 * (1 - starProgress)
+            ..strokeCap = StrokeCap.round,
+        );
+      }
+    }
+  }
+  
+  @override
+  bool shouldRepaint(covariant _CollectionExplosionPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

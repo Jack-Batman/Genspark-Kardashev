@@ -156,12 +156,13 @@ const IAPProduct cosmicMembership = IAPProduct(
 
 /// Cosmetic items
 const List<IAPProduct> cosmeticItems = [
+  // === THEMES ===
   IAPProduct(
     id: 'theme_stellar',
     name: 'Stellar Theme',
     description: 'Golden UI accent colors',
     price: 0.99,
-    priceString: '50 DM',
+    priceString: '150 DM',
     type: ProductType.nonConsumable,
     rewards: {'theme': 'stellar_gold'},
   ),
@@ -170,9 +171,117 @@ const List<IAPProduct> cosmeticItems = [
     name: 'Void Theme',
     description: 'Dark purple UI accents',
     price: 0.99,
-    priceString: '50 DM',
+    priceString: '150 DM',
     type: ProductType.nonConsumable,
     rewards: {'theme': 'void_purple'},
+  ),
+  IAPProduct(
+    id: 'theme_nebula',
+    name: 'Nebula Theme',
+    description: 'Cosmic pink and blue gradients',
+    price: 1.99,
+    priceString: '250 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'theme': 'nebula_pink'},
+  ),
+  IAPProduct(
+    id: 'theme_plasma',
+    name: 'Plasma Theme',
+    description: 'Electric cyan energy accents',
+    price: 1.99,
+    priceString: '250 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'theme': 'plasma_cyan'},
+  ),
+  IAPProduct(
+    id: 'theme_supernova',
+    name: 'Supernova Theme',
+    description: 'Explosive orange and red colors',
+    price: 2.99,
+    priceString: '400 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'theme': 'supernova_red'},
+    badge: 'HOT',
+  ),
+  
+  // === BORDERS ===
+  IAPProduct(
+    id: 'border_neon',
+    name: 'Neon Glow Border',
+    description: 'Animated glowing neon frame',
+    price: 1.99,
+    priceString: '200 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'border': 'neon_glow'},
+  ),
+  IAPProduct(
+    id: 'border_hologram',
+    name: 'Holographic Border',
+    description: 'Shifting rainbow holographic edge',
+    price: 2.99,
+    priceString: '350 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'border': 'hologram'},
+  ),
+  IAPProduct(
+    id: 'border_quantum',
+    name: 'Quantum Border',
+    description: 'Flickering reality-bending frame',
+    price: 3.99,
+    priceString: '500 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'border': 'quantum'},
+    badge: 'RARE',
+  ),
+  IAPProduct(
+    id: 'border_celestial',
+    name: 'Celestial Border',
+    description: 'Starfield animated border',
+    price: 4.99,
+    priceString: '650 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'border': 'celestial'},
+    badge: 'EPIC',
+  ),
+  
+  // === PARTICLE EFFECTS ===
+  IAPProduct(
+    id: 'particles_stardust',
+    name: 'Stardust Particles',
+    description: 'Gentle floating star particles',
+    price: 1.99,
+    priceString: '200 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'particles': 'stardust'},
+  ),
+  IAPProduct(
+    id: 'particles_energy',
+    name: 'Energy Surge',
+    description: 'Electric energy bolts effect',
+    price: 2.99,
+    priceString: '350 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'particles': 'energy_surge'},
+  ),
+  IAPProduct(
+    id: 'particles_cosmic',
+    name: 'Cosmic Swirl',
+    description: 'Swirling galaxy particles',
+    price: 3.99,
+    priceString: '500 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'particles': 'cosmic_swirl'},
+    badge: 'RARE',
+  ),
+  IAPProduct(
+    id: 'particles_singularity',
+    name: 'Singularity Effect',
+    description: 'Black hole gravity particles',
+    price: 5.99,
+    priceString: '800 DM',
+    type: ProductType.nonConsumable,
+    rewards: {'particles': 'singularity'},
+    badge: 'LEGENDARY',
   ),
 ];
 
@@ -232,8 +341,22 @@ class IAPService {
     'dm_universal_dominator',
     // Non-consumables
     'founders_pack',
+    // Themes
     'theme_stellar',
     'theme_void',
+    'theme_nebula',
+    'theme_plasma',
+    'theme_supernova',
+    // Borders
+    'border_neon',
+    'border_hologram',
+    'border_quantum',
+    'border_celestial',
+    // Particle Effects
+    'particles_stardust',
+    'particles_energy',
+    'particles_cosmic',
+    'particles_singularity',
     // Subscriptions
     'cosmic_membership',
   };

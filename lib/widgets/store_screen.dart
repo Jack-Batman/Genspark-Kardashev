@@ -86,11 +86,36 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
               widget.gameProvider.activateFreeTimeWarp(hours: 1);
             }
           }
+        }
+        
+        // Handle premium packages (Galactic Overlord, Universal Dominator)
+        if (product.id == 'dm_galactic_overlord' || product.id == 'dm_universal_dominator') {
+          widget.gameProvider.state.purchasedProductIds.add(product.id);
           
-          // Grant exclusive border from founder's pack
-          if (result.rewards!.containsKey('exclusiveBorder')) {
-            widget.gameProvider.addCosmetic(result.rewards!['exclusiveBorder'] as String);
+          // Grant legendary architect for Universal Dominator
+          if (result.rewards!['guaranteedLegendaryArchitect'] == true) {
+            widget.gameProvider.grantRandomArchitectOfRarity('legendary');
           }
+        }
+        
+        // Handle exclusive cosmetics from any package
+        if (result.rewards!.containsKey('exclusiveBorder')) {
+          final borderId = result.rewards!['exclusiveBorder'] as String;
+          widget.gameProvider.addCosmetic(borderId);
+          // Auto-equip the exclusive border
+          widget.gameProvider.equipBorder(borderId);
+        }
+        if (result.rewards!.containsKey('exclusiveTitle')) {
+          final titleId = result.rewards!['exclusiveTitle'] as String;
+          widget.gameProvider.addCosmetic('title_$titleId');
+          // Set as active title
+          widget.gameProvider.setActiveTitle(titleId);
+        }
+        if (result.rewards!.containsKey('exclusiveAvatar')) {
+          final avatarId = result.rewards!['exclusiveAvatar'] as String;
+          widget.gameProvider.addCosmetic('avatar_$avatarId');
+          // Set as active avatar
+          widget.gameProvider.setActiveAvatar(avatarId);
         }
         
         // Handle cosmetics (use the new addCosmetic method)

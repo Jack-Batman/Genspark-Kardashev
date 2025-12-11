@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show Icons;
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/game_state.dart';
 import '../models/architect.dart';
@@ -74,6 +75,24 @@ class OfflineProgressResult {
   });
   
   bool get hasProgress => energyEarnings > 0 || researchCompleted || expeditionsCompleted > 0;
+}
+
+/// Sunday Challenge reward information
+class SundayChallengeReward {
+  final double kardashevGained;
+  final double darkEnergyReward;      // The 3X reward
+  final double darkMatterReward;
+  final double normalDarkEnergyReward; // What it would be without 3X
+  
+  const SundayChallengeReward({
+    required this.kardashevGained,
+    required this.darkEnergyReward,
+    required this.darkMatterReward,
+    required this.normalDarkEnergyReward,
+  });
+  
+  /// Get the multiplier (should be 3X)
+  double get multiplier => darkEnergyReward / normalDarkEnergyReward;
 }
 
 class GameProvider extends ChangeNotifier {
@@ -638,6 +657,9 @@ class GameProvider extends ChangeNotifier {
         if (_state.kardashevLevel > _state.highestKardashevEver) {
           _state.highestKardashevEver = _state.kardashevLevel;
         }
+        
+        // Track Sunday Challenge progress
+        _updateSundayChallengeProgress();
         
         // Check for era transition milestones every second
         _achievementCheckCounter++;
@@ -1599,6 +1621,48 @@ class GameProvider extends ChangeNotifier {
     }
   }
   
+  // Track active title and avatar (stored in cosmetics with prefixes)
+  String? _activeTitle;
+  String? _activeAvatar;
+  
+  /// Get active title
+  String? get activeTitle => _activeTitle;
+  
+  /// Get active avatar  
+  String? get activeAvatar => _activeAvatar;
+  
+  /// Set active title
+  void setActiveTitle(String? title) {
+    _activeTitle = title;
+    if (title != null && !_state.ownedCosmetics.contains('title_$title')) {
+      _state.ownedCosmetics.add('title_$title');
+    }
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Set active avatar
+  void setActiveAvatar(String? avatar) {
+    _activeAvatar = avatar;
+    if (avatar != null && !_state.ownedCosmetics.contains('avatar_$avatar')) {
+      _state.ownedCosmetics.add('avatar_$avatar');
+    }
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Get list of owned titles
+  List<String> get ownedTitles => _state.ownedCosmetics
+      .where((c) => c.startsWith('title_'))
+      .map((c) => c.substring(6))
+      .toList();
+  
+  /// Get list of owned avatars
+  List<String> get ownedAvatars => _state.ownedCosmetics
+      .where((c) => c.startsWith('avatar_'))
+      .map((c) => c.substring(7))
+      .toList();
+  
   /// Get theme primary color (for main UI elements, selected tabs, highlights)
   Color getThemePrimaryColor() {
     switch (_state.activeTheme) {
@@ -2380,6 +2444,12 @@ class GameProvider extends ChangeNotifier {
   
   /// Prestige - Reset progress for permanent bonus
   bool prestige() {
+    // Block prestige during Sunday Challenge
+    if (isPrestigeBlockedByChallenge) {
+      _notificationController.showPrestigeBlocked();
+      return false;
+    }
+    
     // Require certain Kardashev level to prestige
     if (_state.kardashevLevel < 0.3) return false;
     
@@ -2535,6 +2605,237 @@ class GameProvider extends ChangeNotifier {
   /// Get current prestige tier info
   PrestigeTier? getCurrentPrestigeInfo() {
     return getCurrentPrestigeTier(_state.prestigeTier);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // SUNDAY WEEKLY CHALLENGE - 24-hour prestige challenge with 3X rewards
+  // ═══════════════════════════════════════════════════════════════
+  
+  /// Check if it's Sunday and a new challenge should be offered
+  bool get isSundayChallengeAvailable {
+    final now = DateTime.now();
+    // Check if it's Sunday (weekday 7)
+    if (now.weekday != DateTime.sunday) return false;
+    
+    // Check if we already started this week's challenge
+    if (_state.lastSundayChallengeWeek != null) {
+      final lastChallengeWeek = _getWeekNumber(_state.lastSundayChallengeWeek!);
+      final currentWeek = _getWeekNumber(now);
+      if (lastChallengeWeek == currentWeek) return false;
+    }
+    
+    return true;
+  }
+  
+  /// Get the ISO week number for a date
+  int _getWeekNumber(DateTime date) {
+    // Calculate week number based on year and day of year
+    final firstDayOfYear = DateTime(date.year, 1, 1);
+    final dayOfYear = date.difference(firstDayOfYear).inDays;
+    return ((dayOfYear + firstDayOfYear.weekday - 1) / 7).ceil();
+  }
+  
+  /// Check if Sunday Challenge is currently active
+  bool get isSundayChallengeActive => _state.sundayChallengeActive;
+  
+  /// Get Sunday Challenge end time
+  DateTime? get sundayChallengeEndTime => _state.sundayChallengeEndTime;
+  
+  /// Get Sunday Challenge time remaining
+  Duration get sundayChallengeTimeRemaining {
+    if (!_state.sundayChallengeActive || _state.sundayChallengeEndTime == null) {
+      return Duration.zero;
+    }
+    final remaining = _state.sundayChallengeEndTime!.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
+  
+  /// Check if Sunday Challenge has ended but reward not claimed
+  bool get isSundayChallengeEnded {
+    if (!_state.sundayChallengeActive) return false;
+    if (_state.sundayChallengeEndTime == null) return false;
+    return DateTime.now().isAfter(_state.sundayChallengeEndTime!);
+  }
+  
+  /// Check if Sunday Challenge reward is ready to claim
+  bool get canClaimSundayChallengeReward {
+    return isSundayChallengeEnded && !_state.sundayChallengeRewardClaimed;
+  }
+  
+  /// Get Kardashev progress during the challenge
+  double get sundayChallengeKardashevProgress {
+    return _state.sundayChallengeHighestKardashev - _state.sundayChallengeStartKardashev;
+  }
+  
+  /// Start the Sunday Challenge - forces prestige and begins 24-hour timer
+  bool startSundayChallenge() {
+    if (!isSundayChallengeAvailable) return false;
+    
+    // Force prestige first (reset the game)
+    // Save current dark energy before prestige
+    final currentDarkEnergy = _state.darkEnergy;
+    
+    // Perform the prestige
+    if (_state.kardashevLevel >= 0.3) {
+      prestige();
+    } else {
+      // If can't prestige normally, do a soft reset
+      _softResetForChallenge();
+    }
+    
+    // Now set up the challenge
+    final now = DateTime.now();
+    _state.sundayChallengeActive = true;
+    _state.sundayChallengeStartTime = now;
+    _state.sundayChallengeEndTime = now.add(const Duration(hours: 24));
+    _state.sundayChallengeStartKardashev = _state.kardashevLevel;
+    _state.sundayChallengeStartDarkEnergy = _state.darkEnergy;
+    _state.lastSundayChallengeWeek = now;
+    _state.sundayChallengeRewardClaimed = false;
+    _state.sundayChallengeHighestKardashev = _state.kardashevLevel;
+    
+    _saveGame();
+    notifyListeners();
+    
+    // Show notification
+    _notificationController.showSundayChallengeStarted();
+    
+    return true;
+  }
+  
+  /// Soft reset for challenge (when player can't prestige normally)
+  void _softResetForChallenge() {
+    // Preserve important data
+    final preservedArchitects = List<String>.from(_state.ownedArchitects);
+    final preservedDarkMatter = _state.darkMatter;
+    final preservedDarkEnergy = _state.darkEnergy;
+    final preservedPrestigeCount = _state.prestigeCount;
+    final preservedPrestigeBonus = _state.prestigeBonus;
+    final preservedPrestigeTier = _state.prestigeTier;
+    final preservedArtifactIds = List<String>.from(_state.ownedArtifactIds);
+    final preservedArtifactAcquiredAt = Map<String, int>.from(_state.artifactAcquiredAt);
+    final preservedArtifactSources = Map<String, String>.from(_state.artifactSources);
+    final preservedUnlockedAchievements = List<String>.from(_state.unlockedAchievements);
+    final preservedClaimedAchievements = List<String>.from(_state.claimedAchievements);
+    final preservedLastLoginDate = _state.lastLoginDate;
+    final preservedLoginStreak = _state.loginStreak;
+    final preservedTotalLoginDays = _state.totalLoginDays;
+    final preservedHighestKardashev = _state.highestKardashevEver;
+    
+    // Reset state
+    _state = GameState(
+      energy: 50,
+      darkMatter: preservedDarkMatter,
+      darkEnergy: preservedDarkEnergy,
+      generators: {'wind_turbine': 1},
+      generatorLevels: {'wind_turbine': 1},
+      ownedArchitects: preservedArchitects,
+      prestigeCount: preservedPrestigeCount,
+      prestigeBonus: preservedPrestigeBonus,
+      prestigeTier: preservedPrestigeTier,
+      tutorialCompleted: true,
+      unlockedEras: [0],
+      unlockedAchievements: preservedUnlockedAchievements,
+      claimedAchievements: preservedClaimedAchievements,
+      ownedArtifactIds: preservedArtifactIds,
+      artifactAcquiredAt: preservedArtifactAcquiredAt,
+      artifactSources: preservedArtifactSources,
+      lastLoginDate: preservedLastLoginDate,
+      loginStreak: preservedLoginStreak,
+      totalLoginDays: preservedTotalLoginDays,
+      highestKardashevEver: preservedHighestKardashev,
+    );
+    
+    _invalidateEpsCache();
+  }
+  
+  /// Update highest Kardashev during challenge
+  void _updateSundayChallengeProgress() {
+    if (_state.sundayChallengeActive && !isSundayChallengeEnded) {
+      if (_state.kardashevLevel > _state.sundayChallengeHighestKardashev) {
+        _state.sundayChallengeHighestKardashev = _state.kardashevLevel;
+      }
+    }
+  }
+  
+  /// Check if prestige is blocked by Sunday Challenge
+  bool get isPrestigeBlockedByChallenge {
+    return _state.sundayChallengeActive && !isSundayChallengeEnded;
+  }
+  
+  /// Calculate the 3X reward for Sunday Challenge
+  SundayChallengeReward calculateSundayChallengeReward() {
+    final kardashevGain = sundayChallengeKardashevProgress;
+    
+    // Calculate what the normal prestige reward would be
+    final normalDarkEnergyReward = calculateDarkEnergyReward();
+    
+    // Triple it!
+    final bonusDarkEnergy = normalDarkEnergyReward * 3.0;
+    
+    // Bonus dark matter based on Kardashev progress
+    final bonusDarkMatter = (kardashevGain * 100).clamp(10.0, 500.0);
+    
+    return SundayChallengeReward(
+      kardashevGained: kardashevGain,
+      darkEnergyReward: bonusDarkEnergy,
+      darkMatterReward: bonusDarkMatter,
+      normalDarkEnergyReward: normalDarkEnergyReward,
+    );
+  }
+  
+  /// Claim the Sunday Challenge reward
+  bool claimSundayChallengeReward() {
+    if (!canClaimSundayChallengeReward) return false;
+    
+    final reward = calculateSundayChallengeReward();
+    
+    // Apply the 3X dark energy reward
+    _state.darkEnergy += reward.darkEnergyReward;
+    
+    // Calculate new production bonus from total Dark Energy
+    final newProductionBonus = calculateProductionBonusFromDarkEnergy(_state.darkEnergy);
+    _state.prestigeBonus = newProductionBonus;
+    
+    // Apply bonus dark matter
+    _state.darkMatter += reward.darkMatterReward;
+    
+    // Mark as claimed and end challenge
+    _state.sundayChallengeRewardClaimed = true;
+    _state.sundayChallengeActive = false;
+    
+    AudioService.playAchievement();
+    HapticService.heavyImpact();
+    
+    _saveGame();
+    notifyListeners();
+    
+    _notificationController.showSundayChallengeComplete(
+      formatNumber(reward.darkEnergyReward),
+    );
+    
+    return true;
+  }
+  
+  /// Skip/Cancel the Sunday Challenge (forfeit rewards)
+  void skipSundayChallenge() {
+    _state.sundayChallengeActive = false;
+    _state.sundayChallengeRewardClaimed = true; // Mark as done so it won't show again
+    _saveGame();
+    notifyListeners();
+  }
+  
+  /// Get formatted time remaining for Sunday Challenge
+  String get sundayChallengeTimeRemainingText {
+    final remaining = sundayChallengeTimeRemaining;
+    if (remaining.inHours > 0) {
+      return '${remaining.inHours}h ${remaining.inMinutes % 60}m';
+    } else if (remaining.inMinutes > 0) {
+      return '${remaining.inMinutes}m ${remaining.inSeconds % 60}s';
+    } else if (remaining.inSeconds > 0) {
+      return '${remaining.inSeconds}s';
+    }
+    return 'Complete!';
   }
   
   /// Current number format setting (cached from state)

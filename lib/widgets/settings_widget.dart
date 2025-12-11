@@ -97,7 +97,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             'Enable game sounds',
             Icons.volume_up,
             widget.gameProvider.state.soundEnabled,
-            () => widget.gameProvider.toggleSound(),
+            () {
+              widget.gameProvider.toggleSound();
+              setState(() {}); // Trigger rebuild for animation
+            },
             eraConfig,
           ),
           _buildHapticIntensitySelector(eraConfig),
@@ -119,7 +122,10 @@ class _SettingsWidgetState extends State<SettingsWidget> {
             'Enable system notifications',
             Icons.notifications,
             widget.gameProvider.state.notificationsEnabled,
-            () => widget.gameProvider.toggleNotifications(),
+            () {
+              widget.gameProvider.toggleNotifications();
+              setState(() {}); // Trigger rebuild for animation
+            },
             eraConfig,
           ),
           _buildInfoTile(

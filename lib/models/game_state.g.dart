@@ -82,13 +82,25 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       piggyBankBroken: fields[60] == null ? false : fields[60] as bool,
       hapticIntensity: fields[61] == null ? 1 : fields[61] as int,
       numberFormat: fields[62] == null ? 0 : fields[62] as int,
+      sundayChallengeActive: fields[63] == null ? false : fields[63] as bool,
+      sundayChallengeStartTime: fields[64] as DateTime?,
+      sundayChallengeEndTime: fields[65] as DateTime?,
+      sundayChallengeStartKardashev:
+          fields[66] == null ? 0.0 : fields[66] as double,
+      sundayChallengeStartDarkEnergy:
+          fields[67] == null ? 0.0 : fields[67] as double,
+      lastSundayChallengeWeek: fields[68] as DateTime?,
+      sundayChallengeRewardClaimed:
+          fields[69] == null ? false : fields[69] as bool,
+      sundayChallengeHighestKardashev:
+          fields[70] == null ? 0.0 : fields[70] as double,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(63)
+      ..writeByte(71)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -214,7 +226,23 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(61)
       ..write(obj.hapticIntensity)
       ..writeByte(62)
-      ..write(obj.numberFormat);
+      ..write(obj.numberFormat)
+      ..writeByte(63)
+      ..write(obj.sundayChallengeActive)
+      ..writeByte(64)
+      ..write(obj.sundayChallengeStartTime)
+      ..writeByte(65)
+      ..write(obj.sundayChallengeEndTime)
+      ..writeByte(66)
+      ..write(obj.sundayChallengeStartKardashev)
+      ..writeByte(67)
+      ..write(obj.sundayChallengeStartDarkEnergy)
+      ..writeByte(68)
+      ..write(obj.lastSundayChallengeWeek)
+      ..writeByte(69)
+      ..write(obj.sundayChallengeRewardClaimed)
+      ..writeByte(70)
+      ..write(obj.sundayChallengeHighestKardashev);
   }
 
   @override

@@ -26,6 +26,7 @@ import '../widgets/store_screen.dart';
 import '../widgets/timed_ad_reward_button.dart';
 import '../widgets/flying_bonus_widget.dart';
 import '../widgets/legendary_stage_dialog.dart';
+import '../widgets/sunday_challenge_widget.dart';
 
 /// Main Game Screen - Multi-Era Support
 class GameScreen extends StatefulWidget {
@@ -192,6 +193,18 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
                     child: _buildEraAscensionBanner(gameProvider),
                   ),
 
+                // Sunday Challenge Banner (shows when available or active)
+                if (gameProvider.isSundayChallengeAvailable || gameProvider.isSundayChallengeActive)
+                  Positioned(
+                    top: _getSundayChallengeBannerTop(gameProvider),
+                    left: 0,
+                    right: 0,
+                    child: SundayChallengeBanner(
+                      gameProvider: gameProvider,
+                      onTap: () => _showSundayChallengeDialog(gameProvider),
+                    ),
+                  ),
+
                 // Menu Overlay (Background Scrim & Content)
                 if (_isMenuOpen)
                   Positioned.fill(
@@ -347,6 +360,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
                     ),
                   ),
 
+                // Sunday Challenge Complete - Claim Rewards Dialog
+                if (gameProvider.canClaimSundayChallengeReward)
+                  Positioned.fill(
+                    child: SundayChallengeWidget(
+                      gameProvider: gameProvider,
+                      onDismiss: () => setState(() {}),
+                    ),
+                  ),
+
                 // Tutorial Overlay for New Players
                 if (!gameProvider.state.tutorialCompleted)
                   TutorialOverlay(
@@ -466,6 +488,39 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
     final hasNotTransitioned = !gameProvider.state.unlockedEras.contains(transition.toEra.index);
     
     return hasReachedLevel && hasNotTransitioned;
+  }
+  
+  /// Calculate the top position for Sunday Challenge banner
+  double _getSundayChallengeBannerTop(GameProvider gameProvider) {
+    double baseTop = 130.0;
+    
+    // Adjust for era selector
+    if (gameProvider.state.unlockedEras.length > 1) {
+      baseTop = gameProvider.state.unlockedEras.any((e) => e > 2) ? 220.0 : 175.0;
+    }
+    
+    // Adjust for era ascension banner
+    if (_isEraTransitionAvailable(gameProvider)) {
+      baseTop += 70;
+    }
+    
+    return baseTop;
+  }
+  
+  /// Show the Sunday Challenge dialog
+  void _showSundayChallengeDialog(GameProvider gameProvider) {
+    AudioService.playClick();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => SundayChallengeWidget(
+        gameProvider: gameProvider,
+        onDismiss: () {
+          Navigator.of(context).pop();
+          setState(() {});
+        },
+      ),
+    );
   }
   
   /// Build the Era Ascension banner

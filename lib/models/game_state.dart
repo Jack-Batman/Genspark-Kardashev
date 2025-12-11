@@ -214,6 +214,34 @@ class GameState extends HiveObject {
   // Number Format Options
   @HiveField(62, defaultValue: 0)
   int numberFormat; // 0=standard (1.23M), 1=scientific (1.23e6), 2=engineering (1.23×10⁶)
+
+  // ═══════════════════════════════════════════════════════════════
+  // SUNDAY WEEKLY CHALLENGE - 24-hour prestige challenge
+  // ═══════════════════════════════════════════════════════════════
+  
+  @HiveField(63, defaultValue: false)
+  bool sundayChallengeActive; // Is the 24-hour challenge currently active
+  
+  @HiveField(64)
+  DateTime? sundayChallengeStartTime; // When the challenge started
+  
+  @HiveField(65)
+  DateTime? sundayChallengeEndTime; // When the challenge ends (24 hours after start)
+  
+  @HiveField(66, defaultValue: 0.0)
+  double sundayChallengeStartKardashev; // Kardashev level at challenge start (after forced prestige)
+  
+  @HiveField(67, defaultValue: 0.0)
+  double sundayChallengeStartDarkEnergy; // Dark Energy at challenge start
+  
+  @HiveField(68)
+  DateTime? lastSundayChallengeWeek; // Track which week's challenge was started (to prevent duplicates)
+  
+  @HiveField(69, defaultValue: false)
+  bool sundayChallengeRewardClaimed; // Has the 3X reward been claimed
+  
+  @HiveField(70, defaultValue: 0.0)
+  double sundayChallengeHighestKardashev; // Highest K reached during this challenge
   
   GameState({
     this.energy = 0,
@@ -279,6 +307,15 @@ class GameState extends HiveObject {
     this.piggyBankBroken = false,
     this.hapticIntensity = 1,
     this.numberFormat = 0,
+    // Sunday Challenge
+    this.sundayChallengeActive = false,
+    this.sundayChallengeStartTime,
+    this.sundayChallengeEndTime,
+    this.sundayChallengeStartKardashev = 0.0,
+    this.sundayChallengeStartDarkEnergy = 0.0,
+    this.lastSundayChallengeWeek,
+    this.sundayChallengeRewardClaimed = false,
+    this.sundayChallengeHighestKardashev = 0.0,
   })  : generators = generators ?? {},
         activeExpeditions = activeExpeditions ?? [],
         ownedArtifactIds = ownedArtifactIds ?? [],

@@ -27,6 +27,8 @@ enum NotificationType {
   // Piggy Bank
   piggyBankDeposit,
   piggyBankCollected,
+  // Sunday Challenge
+  sundayChallenge,
 }
 
 /// In-app notification banner model
@@ -478,6 +480,46 @@ class NotificationBannerController extends ChangeNotifier {
       icon: Icons.savings,
       color: Colors.amber,
       onTap: onTap,
+      duration: const Duration(seconds: 5),
+    ));
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // SUNDAY CHALLENGE NOTIFICATIONS
+  // ═══════════════════════════════════════════════════════════════
+  
+  void showSundayChallengeStarted() {
+    show(NotificationBannerData(
+      id: 'sunday_challenge_started_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.sundayChallenge,
+      title: '🏆 SUNDAY CHALLENGE STARTED!',
+      message: 'Reach as far as you can in 24 hours. No prestige allowed!',
+      icon: Icons.emoji_events,
+      color: Colors.amber,
+      duration: const Duration(seconds: 6),
+    ));
+  }
+  
+  void showSundayChallengeComplete(String darkEnergyReward) {
+    show(NotificationBannerData(
+      id: 'sunday_challenge_complete_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.sundayChallenge,
+      title: '🎉 CHALLENGE COMPLETE!',
+      message: 'Earned $darkEnergyReward Dark Energy (3X bonus)!',
+      icon: Icons.celebration,
+      color: Colors.green,
+      duration: const Duration(seconds: 8),
+    ));
+  }
+  
+  void showPrestigeBlocked() {
+    show(NotificationBannerData(
+      id: 'prestige_blocked_${DateTime.now().millisecondsSinceEpoch}',
+      type: NotificationType.sundayChallenge,
+      title: '⛔ PRESTIGE BLOCKED',
+      message: 'Cannot prestige during Sunday Challenge. Complete the 24-hour challenge first!',
+      icon: Icons.block,
+      color: Colors.red,
       duration: const Duration(seconds: 5),
     ));
   }

@@ -115,6 +115,22 @@ const List<IAPProduct> darkMatterPackages = [
   ),
 ];
 
+/// AI Nexus - Permanent 2x Energy Production (one-time purchase)
+const IAPProduct aiNexus = IAPProduct(
+  id: 'ai_nexus',
+  name: 'AI Nexus',
+  description: 'Advanced AI system that permanently doubles all energy production across all Eras!',
+  price: 17.99,
+  priceString: '\$17.99',
+  type: ProductType.nonConsumable,
+  rewards: {
+    'aiNexus': true,
+    'productionMultiplier': 2.0,
+  },
+  isOneTime: true,
+  badge: 'BEST',
+);
+
 /// Founder's Pack (one-time purchase)
 const IAPProduct foundersPack = IAPProduct(
   id: 'founders_pack',
@@ -341,6 +357,7 @@ class IAPService {
     'dm_universal_dominator',
     // Non-consumables
     'founders_pack',
+    'ai_nexus',
     // Themes
     'theme_stellar',
     'theme_void',
@@ -536,6 +553,8 @@ class IAPService {
     }
     // Check founder's pack
     if (foundersPack.id == id) return foundersPack;
+    // Check AI Nexus
+    if (aiNexus.id == id) return aiNexus;
     // Check cosmic membership
     if (cosmicMembership.id == id) return cosmicMembership;
     // Check cosmetics
@@ -544,6 +563,9 @@ class IAPService {
     }
     return null;
   }
+  
+  /// Check if AI Nexus is available (not yet purchased)
+  bool get isAINexusAvailable => !isPurchased(aiNexus.id);
   
   // ═══════════════════════════════════════════════════════════════
   // PUBLIC API

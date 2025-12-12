@@ -27,6 +27,7 @@ import '../widgets/timed_ad_reward_button.dart';
 import '../widgets/flying_bonus_widget.dart';
 import '../widgets/legendary_stage_dialog.dart';
 import '../widgets/sunday_challenge_widget.dart';
+import '../widgets/ai_nexus_widget.dart';
 
 /// Main Game Screen - Multi-Era Support
 class GameScreen extends StatefulWidget {
@@ -411,6 +412,13 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
         ),
         
         const SizedBox(width: 8),
+        
+        // AI Nexus Badge (if owned)
+        if (gameProvider.state.hasAINexus)
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: AINexusBadge(isOwned: gameProvider.state.hasAINexus),
+          ),
         
         // Settings and Market Icons (stacked vertically)
         Column(

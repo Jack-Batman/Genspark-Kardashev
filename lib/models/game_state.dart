@@ -243,6 +243,16 @@ class GameState extends HiveObject {
   @HiveField(70, defaultValue: 0.0)
   double sundayChallengeHighestKardashev; // Highest K reached during this challenge
   
+  // ═══════════════════════════════════════════════════════════════
+  // AI NEXUS - Premium permanent buff (2x energy production)
+  // ═══════════════════════════════════════════════════════════════
+  
+  @HiveField(71, defaultValue: false)
+  bool hasAINexus; // Permanent 2x energy production buff
+  
+  @HiveField(72)
+  DateTime? aiNexusPurchasedAt; // When the AI Nexus was purchased
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -316,6 +326,9 @@ class GameState extends HiveObject {
     this.lastSundayChallengeWeek,
     this.sundayChallengeRewardClaimed = false,
     this.sundayChallengeHighestKardashev = 0.0,
+    // AI Nexus
+    this.hasAINexus = false,
+    this.aiNexusPurchasedAt,
   })  : generators = generators ?? {},
         activeExpeditions = activeExpeditions ?? [],
         ownedArtifactIds = ownedArtifactIds ?? [],
@@ -437,8 +450,16 @@ class GameState extends HiveObject {
     // Add auto-tap contribution
     total += autoTapPerSecond * (1 + productionBonus) * (1 + prestigeBonus);
     
+    // Apply AI Nexus 2x multiplier if owned
+    if (hasAINexus) {
+      total *= 2.0;
+    }
+    
     return total;
   }
+  
+  /// Get the AI Nexus multiplier (for display purposes)
+  double get aiNexusMultiplier => hasAINexus ? 2.0 : 1.0;
   
   /// Get count of specific generator
   int getGeneratorCount(String generatorId) {

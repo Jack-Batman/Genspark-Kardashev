@@ -94,13 +94,15 @@ class GameStateAdapter extends TypeAdapter<GameState> {
           fields[69] == null ? false : fields[69] as bool,
       sundayChallengeHighestKardashev:
           fields[70] == null ? 0.0 : fields[70] as double,
+      hasAINexus: fields[71] == null ? false : fields[71] as bool,
+      aiNexusPurchasedAt: fields[72] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(71)
+      ..writeByte(73)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -242,7 +244,11 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(69)
       ..write(obj.sundayChallengeRewardClaimed)
       ..writeByte(70)
-      ..write(obj.sundayChallengeHighestKardashev);
+      ..write(obj.sundayChallengeHighestKardashev)
+      ..writeByte(71)
+      ..write(obj.hasAINexus)
+      ..writeByte(72)
+      ..write(obj.aiNexusPurchasedAt);
   }
 
   @override

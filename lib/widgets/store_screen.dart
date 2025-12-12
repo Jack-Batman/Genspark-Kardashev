@@ -8,6 +8,7 @@ import '../providers/game_provider.dart';
 import 'glass_container.dart';
 import 'daily_deals_widget.dart';
 import 'piggy_bank_widget.dart';
+import 'ai_nexus_widget.dart';
 
 /// Main Store Screen with all monetization options
 class StoreScreen extends StatefulWidget {
@@ -609,12 +610,32 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   
   Widget _buildSpecialsTab() {
     final isFoundersAvailable = _iapService.isFoundersPackAvailable;
+    final hasAINexus = widget.gameProvider.state.hasAINexus;
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // AI Nexus - Premium permanent buff (featured at top)
+          const Text(
+            'PERMANENT UPGRADES',
+            style: TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF00E5FF),
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          AINexusPurchaseCard(
+            gameProvider: widget.gameProvider,
+            onPurchase: () => _purchaseAINexus(),
+            isPurchasing: _isPurchasing,
+          ),
+          const SizedBox(height: 24),
+          
           // Founder's Pack
           if (isFoundersAvailable) ...[
             const Text(
@@ -665,6 +686,49 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
         ],
       ),
     );
+  }
+  
+  /// Purchase AI Nexus - permanent 2x energy production
+  Future<void> _purchaseAINexus() async {
+    if (_isPurchasing) return;
+    if (widget.gameProvider.state.hasAINexus) return; // Already owned
+    
+    setState(() => _isPurchasing = true);
+    
+    try {
+      final result = await _iapService.purchaseProduct(aiNexus);
+      
+      if (result.success && result.rewards != null) {
+        // Activate AI Nexus
+        widget.gameProvider.state.hasAINexus = true;
+        widget.gameProvider.state.aiNexusPurchasedAt = DateTime.now();
+        widget.gameProvider.state.purchasedProductIds.add(aiNexus.id);
+        
+        // Notify the provider to update UI
+        widget.gameProvider.notifyListeners();
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('AI Nexus activated! 2x Energy Production forever!'),
+              backgroundColor: Color(0xFF00E5FF),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result.error ?? 'Purchase failed. Please try again.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    } finally {
+      setState(() => _isPurchasing = false);
+    }
   }
   
   Widget _buildCosmeticsTab() {

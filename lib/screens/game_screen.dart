@@ -391,14 +391,25 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
     final accentColor = gameProvider.getThemeAccentColor();
     
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Energy Counter
+        // Left side: Dark Matter + Energy stacked vertically
         Expanded(
-          child: EnergyCounter(
-            value: gameProvider.state.energy,
-            label: 'ENERGY',
-            icon: Icons.bolt,
-            color: accentColor,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Dark Matter Counter (compact)
+              _buildDarkMatterCounter(gameProvider),
+              const SizedBox(height: 8),
+              // Energy Counter
+              EnergyCounter(
+                value: gameProvider.state.energy,
+                label: 'ENERGY',
+                icon: Icons.bolt,
+                color: accentColor,
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 12),
@@ -473,6 +484,109 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
           ],
         ),
       ],
+    );
+  }
+  
+  /// Build the Dark Matter counter widget - compact premium currency display
+  Widget _buildDarkMatterCounter(GameProvider gameProvider) {
+    const darkMatterColor = Color(0xFF9C27B0); // Purple for Dark Matter
+    
+    return GestureDetector(
+      onTap: () => _openStore(context, gameProvider),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.black.withValues(alpha: 0.5),
+              darkMatterColor.withValues(alpha: 0.2),
+            ],
+          ),
+          border: Border.all(
+            color: darkMatterColor.withValues(alpha: 0.4),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: darkMatterColor.withValues(alpha: 0.2),
+              blurRadius: 8,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Dark Matter Icon with glow
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: darkMatterColor.withValues(alpha: 0.5),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.blur_circular,
+                color: Colors.white,
+                size: 14,
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Dark Matter value
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'DARK MATTER',
+                  style: TextStyle(
+                    fontSize: 8,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    letterSpacing: 1,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  GameProvider.formatNumber(gameProvider.state.darkMatter),
+                  style: const TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFCE93D8), // Light purple
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 6),
+            // Plus button indicator
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: darkMatterColor.withValues(alpha: 0.3),
+                border: Border.all(
+                  color: const Color(0xFFCE93D8).withValues(alpha: 0.5),
+                ),
+              ),
+              child: const Icon(
+                Icons.add,
+                color: Color(0xFFCE93D8),
+                size: 10,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
   

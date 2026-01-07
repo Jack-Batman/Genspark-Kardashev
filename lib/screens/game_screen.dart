@@ -27,7 +27,7 @@ import '../widgets/timed_ad_reward_button.dart';
 import '../widgets/flying_bonus_widget.dart';
 import '../widgets/legendary_stage_dialog.dart';
 import '../widgets/sunday_challenge_widget.dart';
-import '../widgets/ai_nexus_widget.dart';
+import '../widgets/boost_panel.dart';
 
 /// Main Game Screen - Multi-Era Support
 class GameScreen extends StatefulWidget {
@@ -81,8 +81,11 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
   void _startAudioForCurrentEra() {
     final provider = context.read<GameProvider>();
     final currentEra = provider.state.currentEra;
-    AudioService.playEraMusic(currentEra);
-    AudioService.playEraAmbient(currentEra);
+    // Only play audio if sound is enabled in settings
+    if (provider.state.soundEnabled) {
+      AudioService.playEraMusic(currentEra);
+      AudioService.playEraAmbient(currentEra);
+    }
     _lastEraForAudio = currentEra;
   }
 
@@ -136,12 +139,15 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
           currentEra: gameProvider.state.era,
         );
         
-        // Update audio when era changes
+        // Update audio when era changes (only if sound is enabled)
         final currentEra = gameProvider.state.currentEra;
         if (_lastEraForAudio != currentEra) {
           _lastEraForAudio = currentEra;
-          AudioService.playEraMusic(currentEra);
-          AudioService.playEraAmbient(currentEra);
+          // Only play audio if sound is enabled in settings
+          if (gameProvider.state.soundEnabled) {
+            AudioService.playEraMusic(currentEra);
+            AudioService.playEraAmbient(currentEra);
+          }
         }
 
         _game.onTapCallback = () {
@@ -393,103 +399,36 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left side: Dark Matter + Energy stacked vertically
+        // Left side: Currency indicators (fills available space)
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Dark Matter Counter (compact)
-              _buildDarkMatterCounter(gameProvider),
+              _buildDarkMatterDisplay(gameProvider),
               const SizedBox(height: 8),
-              // Energy Counter
-              EnergyCounter(
-                value: gameProvider.state.energy,
-                label: 'ENERGY',
-                icon: Icons.bolt,
-                color: accentColor,
-              ),
+              _buildEnergyDisplay(gameProvider, accentColor),
             ],
           ),
         ),
+        
         const SizedBox(width: 12),
 
-        // Kardashev Indicator
-        KardashevIndicator(
-          level: gameProvider.state.kardashevLevel,
-          era: gameProvider.state.currentEra,
-          eraConfig: eraConfig,
-          themeColor: gameProvider.hasActiveTheme ? primaryColor : null,
-        ),
+        // Center: Kardashev Indicator (larger, more readable)
+        _buildKardashevDisplay(gameProvider, eraConfig, primaryColor),
         
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         
-        // AI Nexus Badge (if owned)
-        if (gameProvider.state.hasAINexus)
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: AINexusBadge(isOwned: gameProvider.state.hasAINexus),
-          ),
-        
-        // Settings and Market Icons (stacked vertically)
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Settings Gear Icon
-            GestureDetector(
-              onTap: () => _showSettingsModal(context, gameProvider),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.black.withValues(alpha: 0.3),
-                  border: Border.all(
-                    color: primaryColor.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Icon(
-                  Icons.settings,
-                  color: Colors.white.withValues(alpha: 0.7),
-                  size: 18,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            // Market Icon - Uses theme colors
-            GestureDetector(
-              onTap: () => _openStore(context, gameProvider),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [
-                      primaryColor.withValues(alpha: 0.3),
-                      accentColor.withValues(alpha: 0.2),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: primaryColor.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Icon(
-                  Icons.storefront,
-                  color: accentColor,
-                  size: 18,
-                ),
-              ),
-            ),
-          ],
-        ),
+        // Right side: Action buttons (hugging right edge)
+        _buildActionButtonsColumn(gameProvider, primaryColor, accentColor),
       ],
     );
   }
   
-  /// Build the Dark Matter counter widget - compact premium currency display
-  Widget _buildDarkMatterCounter(GameProvider gameProvider) {
-    const darkMatterColor = Color(0xFF9C27B0); // Purple for Dark Matter
+  /// Dark Matter display with label
+  Widget _buildDarkMatterDisplay(GameProvider gameProvider) {
+    const dmColor = Color(0xFF9C27B0);
+    const dmTextColor = Color(0xFFCE93D8);
     
     return GestureDetector(
       onTap: () => _openStore(context, gameProvider),
@@ -497,94 +436,344 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.black.withValues(alpha: 0.5),
-              darkMatterColor.withValues(alpha: 0.2),
-            ],
-          ),
+          color: Colors.black.withValues(alpha: 0.5),
           border: Border.all(
-            color: darkMatterColor.withValues(alpha: 0.4),
-            width: 1,
+            color: dmColor.withValues(alpha: 0.5),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: darkMatterColor.withValues(alpha: 0.2),
+              color: dmColor.withValues(alpha: 0.2),
               blurRadius: 8,
               spreadRadius: 0,
             ),
           ],
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            // Dark Matter Icon with glow
+            // Icon
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: dmColor.withValues(alpha: 0.3),
+              ),
+              child: const Icon(
+                Icons.blur_circular,
+                color: dmTextColor,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            // Label and Value
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'DARK MATTER',
+                    style: TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.6),
+                      letterSpacing: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    GameProvider.formatNumber(gameProvider.state.darkMatter),
+                    style: const TextStyle(
+                      fontFamily: 'Orbitron',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: dmTextColor,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Add button
             Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: darkMatterColor.withValues(alpha: 0.5),
-                    blurRadius: 6,
-                  ),
-                ],
+                color: dmColor.withValues(alpha: 0.4),
               ),
               child: const Icon(
-                Icons.blur_circular,
-                color: Colors.white,
+                Icons.add,
+                color: dmTextColor,
                 size: 14,
               ),
             ),
-            const SizedBox(width: 8),
-            // Dark Matter value
-            Column(
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Energy display with label
+  Widget _buildEnergyDisplay(GameProvider gameProvider, Color accentColor) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.black.withValues(alpha: 0.5),
+        border: Border.all(
+          color: accentColor.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: 0.15),
+            blurRadius: 8,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Icon
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accentColor.withValues(alpha: 0.3),
+            ),
+            child: Icon(
+              Icons.bolt,
+              color: accentColor,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Label and Value
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'DARK MATTER',
+                  'ENERGY',
                   style: TextStyle(
-                    fontSize: 8,
+                    fontFamily: 'Orbitron',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w500,
                     color: Colors.white.withValues(alpha: 0.6),
                     letterSpacing: 1,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
+                const SizedBox(height: 2),
                 Text(
-                  GameProvider.formatNumber(gameProvider.state.darkMatter),
-                  style: const TextStyle(
+                  GameProvider.formatNumber(gameProvider.state.energy),
+                  style: TextStyle(
                     fontFamily: 'Orbitron',
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFCE93D8), // Light purple
+                    color: accentColor,
                   ),
                 ),
               ],
             ),
-            const SizedBox(width: 6),
-            // Plus button indicator
-            Container(
-              padding: const EdgeInsets.all(2),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: darkMatterColor.withValues(alpha: 0.3),
-                border: Border.all(
-                  color: const Color(0xFFCE93D8).withValues(alpha: 0.5),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Kardashev display (larger, more prominent)
+  Widget _buildKardashevDisplay(GameProvider gameProvider, dynamic eraConfig, Color primaryColor) {
+    final level = gameProvider.state.kardashevLevel;
+    final subtitle = eraConfig?.subtitle ?? 'ERA ${gameProvider.state.currentEra + 1}';
+    final eraProgress = (level - level.floor()).clamp(0.0, 1.0);
+    
+    return Container(
+      width: 140,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: Colors.black.withValues(alpha: 0.6),
+        border: Border.all(
+          color: primaryColor.withValues(alpha: 0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: primaryColor.withValues(alpha: 0.2),
+            blurRadius: 10,
+            spreadRadius: 0,
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header row with label and era badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'KARDASHEV',
+                style: TextStyle(
+                  fontFamily: 'Orbitron',
+                  fontSize: 9,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: 0.7),
+                  letterSpacing: 1.2,
                 ),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Color(0xFFCE93D8),
-                size: 10,
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: primaryColor.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontFamily: 'Orbitron',
+                    fontSize: 8,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          // Large level display
+          Text(
+            level.toStringAsFixed(3),
+            style: const TextStyle(
+              fontFamily: 'Orbitron',
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF00E5FF),
+              height: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Progress bar
+          SizedBox(
+            width: 110,
+            height: 6,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: LinearProgressIndicator(
+                value: eraProgress,
+                backgroundColor: Colors.white.withValues(alpha: 0.15),
+                valueColor: AlwaysStoppedAnimation<Color>(primaryColor),
               ),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  /// Action buttons column (Settings + Store + AI Nexus) - pushed to right edge
+  Widget _buildActionButtonsColumn(GameProvider gameProvider, Color primaryColor, Color accentColor) {
+    const buttonSize = 40.0;
+    const iconSize = 20.0;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        // AI Nexus indicator (if owned) - at top
+        if (gameProvider.state.hasAINexus) ...[
+          _buildAINexusBadge(),
+          const SizedBox(height: 6),
+        ],
+        // Settings button
+        GestureDetector(
+          onTap: () => _showSettingsModal(context, gameProvider),
+          child: Container(
+            width: buttonSize,
+            height: buttonSize,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.black.withValues(alpha: 0.5),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.25),
+                width: 1.5,
+              ),
+            ),
+            child: const Icon(
+              Icons.settings,
+              color: Colors.white70,
+              size: iconSize,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Store button
+        GestureDetector(
+          onTap: () => _openStore(context, gameProvider),
+          child: Container(
+            width: buttonSize,
+            height: buttonSize,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              gradient: LinearGradient(
+                colors: [
+                  primaryColor.withValues(alpha: 0.4),
+                  accentColor.withValues(alpha: 0.3),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              border: Border.all(
+                color: accentColor.withValues(alpha: 0.6),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: accentColor.withValues(alpha: 0.2),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.storefront,
+              color: accentColor,
+              size: iconSize,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+  
+  /// AI Nexus badge (2X indicator)
+  Widget _buildAINexusBadge() {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF00E5FF), Color(0xFF7C4DFF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF00E5FF).withValues(alpha: 0.5),
+            blurRadius: 8,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
+      child: const Center(
+        child: Text(
+          '2X',
+          style: TextStyle(
+            fontFamily: 'Orbitron',
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
         ),
       ),
     );
@@ -1092,7 +1281,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
           ),
           const SizedBox(width: 6),
           Expanded(
-            child: _buildTab(4, 'STATS', Icons.analytics, primaryColor, accentColor, gameProvider: gameProvider, showPrestigeBadge: gameProvider.getNextPrestigeInfo() != null && gameProvider.state.kardashevLevel >= (gameProvider.getNextPrestigeInfo()?.requiredKardashev ?? 999)),
+            child: _buildTab(
+              4, 
+              'BOOSTS', 
+              Icons.flash_on, 
+              primaryColor, 
+              accentColor, 
+              gameProvider: gameProvider,
+              showBadge: gameProvider.hasActiveBoost,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: _buildTab(5, 'STATS', Icons.analytics, primaryColor, accentColor, gameProvider: gameProvider, showPrestigeBadge: gameProvider.getNextPrestigeInfo() != null && gameProvider.state.kardashevLevel >= (gameProvider.getNextPrestigeInfo()?.requiredKardashev ?? 999)),
           ),
         ],
       ),
@@ -1262,7 +1463,8 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
       case 1: return 'RESEARCH LAB';
       case 2: return 'ARCHITECTS';
       case 3: return 'OBJECTIVES';
-      case 4: return 'STATISTICS';
+      case 4: return 'BOOSTS';
+      case 5: return 'STATISTICS';
       default: return '';
     }
   }
@@ -1279,10 +1481,19 @@ class _GameScreenState extends State<GameScreen> with TickerProviderStateMixin, 
       case 3:
         return _buildAchievementsTab(gameProvider);
       case 4:
+        return _buildBoostsTab(gameProvider);
+      case 5:
         return _buildStatsTab(gameProvider);
       default:
         return const SizedBox();
     }
+  }
+  
+  Widget _buildBoostsTab(GameProvider gameProvider) {
+    return BoostPanel(
+      gameProvider: gameProvider,
+      onOpenStore: () => _openStore(context, gameProvider),
+    );
   }
   
   Widget _buildAchievementsTab(GameProvider gameProvider) {

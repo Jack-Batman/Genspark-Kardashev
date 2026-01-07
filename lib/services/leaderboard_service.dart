@@ -138,7 +138,6 @@ class LeaderboardService {
   
   // Simulated leaderboard data
   final Map<LeaderboardCategory, List<LeaderboardEntry>> _leaderboards = {};
-  LeaderboardEntry? _currentPlayerEntry;
   WeeklyTournament? _currentTournament;
   
   // Player's current stats for comparison

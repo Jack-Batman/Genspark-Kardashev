@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:math';
 import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show Icons;
+
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/game_state.dart';
 import '../models/architect.dart';
@@ -343,6 +343,10 @@ class GameProvider extends ChangeNotifier {
     
     _state.lastOnlineTime = DateTime.now();
     _isInitialized = true;
+    
+    // CRITICAL: Sync audio state with saved preferences
+    // This ensures sound stays off if user previously disabled it
+    AudioService.setEnabled(_state.soundEnabled);
     
     // Check daily login reward
     _checkDailyLogin();
@@ -1194,6 +1198,16 @@ class GameProvider extends ChangeNotifier {
   void addDarkMatter(double amount) {
     final bonusAmount = amount * (1 + _state.darkMatterBonus);
     _state.darkMatter += bonusAmount;
+    notifyListeners();
+  }
+  
+  /// Activate AI Nexus (permanent 2x energy production buff)
+  void activateAINexus() {
+    if (_state.hasAINexus) return; // Already owned
+    _state.hasAINexus = true;
+    _state.aiNexusPurchasedAt = DateTime.now();
+    _state.purchasedProductIds.add('ai_nexus');
+    _saveGame();
     notifyListeners();
   }
   
@@ -2491,6 +2505,32 @@ class GameProvider extends ChangeNotifier {
     final preservedCompletedLegendary = List<String>.from(_state.completedLegendaryExpeditions);
     final preservedLegendaryCooldowns = Map<String, int>.from(_state.legendaryExpeditionCooldowns);
     
+    // CRITICAL: Preserve ALL purchase data - these are real-money purchases that must persist forever
+    final preservedHasAINexus = _state.hasAINexus;
+    final preservedAINexusPurchasedAt = _state.aiNexusPurchasedAt;
+    final preservedPurchasedProductIds = List<String>.from(_state.purchasedProductIds);
+    final preservedHasFoundersPack = _state.hasFoundersPack;
+    final preservedIsMember = _state.isMember;
+    final preservedMembershipExpiresAt = _state.membershipExpiresAt;
+    final preservedMembershipStartedAt = _state.membershipStartedAt;
+    
+    // Preserve cosmetics (purchased items)
+    final preservedActiveTheme = _state.activeTheme;
+    final preservedActiveBorder = _state.activeBorder;
+    final preservedActiveParticles = _state.activeParticles;
+    final preservedOwnedCosmetics = List<String>.from(_state.ownedCosmetics);
+    
+    // Preserve piggy bank (accumulated value)
+    final preservedPiggyBankDarkMatter = _state.piggyBankDarkMatter;
+    final preservedPiggyBankBroken = _state.piggyBankBroken;
+    
+    // Preserve settings
+    final preservedSoundEnabled = _state.soundEnabled;
+    final preservedHapticsEnabled = _state.hapticsEnabled;
+    final preservedNotificationsEnabled = _state.notificationsEnabled;
+    final preservedHapticIntensity = _state.hapticIntensity;
+    final preservedNumberFormat = _state.numberFormat;
+    
     // Determine prestige tier based on total prestiges (for display/achievements)
     final newPrestigeTier = min(_state.prestigeTier + 1, prestigeTiers.length);
     
@@ -2523,6 +2563,28 @@ class GameProvider extends ChangeNotifier {
       legendaryExpeditionCooldowns: preservedLegendaryCooldowns,
       // Preserve highest K for diminishing returns on repeated low-K prestiges
       highestKardashevEver: preservedHighestKardashev,
+      // CRITICAL: Preserve ALL purchase data - real-money purchases must persist forever
+      hasAINexus: preservedHasAINexus,
+      aiNexusPurchasedAt: preservedAINexusPurchasedAt,
+      purchasedProductIds: preservedPurchasedProductIds,
+      hasFoundersPack: preservedHasFoundersPack,
+      isMember: preservedIsMember,
+      membershipExpiresAt: preservedMembershipExpiresAt,
+      membershipStartedAt: preservedMembershipStartedAt,
+      // Preserve cosmetics
+      activeTheme: preservedActiveTheme,
+      activeBorder: preservedActiveBorder,
+      activeParticles: preservedActiveParticles,
+      ownedCosmetics: preservedOwnedCosmetics,
+      // Preserve piggy bank
+      piggyBankDarkMatter: preservedPiggyBankDarkMatter,
+      piggyBankBroken: preservedPiggyBankBroken,
+      // Preserve settings
+      soundEnabled: preservedSoundEnabled,
+      hapticsEnabled: preservedHapticsEnabled,
+      notificationsEnabled: preservedNotificationsEnabled,
+      hapticIntensity: preservedHapticIntensity,
+      numberFormat: preservedNumberFormat,
     );
     
     // Clear any pending achievement notifications to prevent stale popups
@@ -2672,9 +2734,6 @@ class GameProvider extends ChangeNotifier {
     if (!isSundayChallengeAvailable) return false;
     
     // Force prestige first (reset the game)
-    // Save current dark energy before prestige
-    final currentDarkEnergy = _state.darkEnergy;
-    
     // Perform the prestige
     if (_state.kardashevLevel >= 0.3) {
       prestige();
@@ -2722,6 +2781,26 @@ class GameProvider extends ChangeNotifier {
     final preservedTotalLoginDays = _state.totalLoginDays;
     final preservedHighestKardashev = _state.highestKardashevEver;
     
+    // CRITICAL: Preserve ALL purchase data - real-money purchases must persist forever
+    final preservedHasAINexus = _state.hasAINexus;
+    final preservedAINexusPurchasedAt = _state.aiNexusPurchasedAt;
+    final preservedPurchasedProductIds = List<String>.from(_state.purchasedProductIds);
+    final preservedHasFoundersPack = _state.hasFoundersPack;
+    final preservedIsMember = _state.isMember;
+    final preservedMembershipExpiresAt = _state.membershipExpiresAt;
+    final preservedMembershipStartedAt = _state.membershipStartedAt;
+    final preservedActiveTheme = _state.activeTheme;
+    final preservedActiveBorder = _state.activeBorder;
+    final preservedActiveParticles = _state.activeParticles;
+    final preservedOwnedCosmetics = List<String>.from(_state.ownedCosmetics);
+    final preservedPiggyBankDarkMatter = _state.piggyBankDarkMatter;
+    final preservedPiggyBankBroken = _state.piggyBankBroken;
+    final preservedSoundEnabled = _state.soundEnabled;
+    final preservedHapticsEnabled = _state.hapticsEnabled;
+    final preservedNotificationsEnabled = _state.notificationsEnabled;
+    final preservedHapticIntensity = _state.hapticIntensity;
+    final preservedNumberFormat = _state.numberFormat;
+    
     // Reset state
     _state = GameState(
       energy: 50,
@@ -2744,6 +2823,25 @@ class GameProvider extends ChangeNotifier {
       loginStreak: preservedLoginStreak,
       totalLoginDays: preservedTotalLoginDays,
       highestKardashevEver: preservedHighestKardashev,
+      // CRITICAL: Preserve ALL purchase data
+      hasAINexus: preservedHasAINexus,
+      aiNexusPurchasedAt: preservedAINexusPurchasedAt,
+      purchasedProductIds: preservedPurchasedProductIds,
+      hasFoundersPack: preservedHasFoundersPack,
+      isMember: preservedIsMember,
+      membershipExpiresAt: preservedMembershipExpiresAt,
+      membershipStartedAt: preservedMembershipStartedAt,
+      activeTheme: preservedActiveTheme,
+      activeBorder: preservedActiveBorder,
+      activeParticles: preservedActiveParticles,
+      ownedCosmetics: preservedOwnedCosmetics,
+      piggyBankDarkMatter: preservedPiggyBankDarkMatter,
+      piggyBankBroken: preservedPiggyBankBroken,
+      soundEnabled: preservedSoundEnabled,
+      hapticsEnabled: preservedHapticsEnabled,
+      notificationsEnabled: preservedNotificationsEnabled,
+      hapticIntensity: preservedHapticIntensity,
+      numberFormat: preservedNumberFormat,
     );
     
     _invalidateEpsCache();
@@ -3147,10 +3245,14 @@ class GameProvider extends ChangeNotifier {
   void toggleSound() {
     _state.soundEnabled = !_state.soundEnabled;
     AudioService.setEnabled(_state.soundEnabled);
-    // Also control ambient sounds
+    // Control both music and ambient sounds
     if (_state.soundEnabled) {
+      // Re-enable: Start playing era music and ambient
+      AudioService.playEraMusic(_state.currentEra);
       AudioService.playEraAmbient(_state.currentEra);
     } else {
+      // Disable: Stop all audio
+      AudioService.stopMusic();
       AudioService.stopAmbient();
     }
     _saveGame();

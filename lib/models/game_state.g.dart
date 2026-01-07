@@ -76,7 +76,7 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       lastMonthlyDMClaimed: fields[55] as DateTime?,
       activeExpeditions: (fields[57] as List?)
           ?.map((dynamic e) => (e as Map).cast<String, dynamic>())
-          ?.toList(),
+          .toList(),
       highestKardashevEver: fields[58] as double,
       piggyBankDarkMatter: fields[59] == null ? 0.0 : fields[59] as double,
       piggyBankBroken: fields[60] == null ? false : fields[60] as bool,
@@ -96,13 +96,15 @@ class GameStateAdapter extends TypeAdapter<GameState> {
           fields[70] == null ? 0.0 : fields[70] as double,
       hasAINexus: fields[71] == null ? false : fields[71] as bool,
       aiNexusPurchasedAt: fields[72] as DateTime?,
+      productionBoostMultiplier: fields[73] == null ? 1.0 : fields[73] as double,
+      productionBoostEndTime: fields[74] as DateTime?,
     );
   }
 
   @override
   void write(BinaryWriter writer, GameState obj) {
     writer
-      ..writeByte(73)
+      ..writeByte(75)
       ..writeByte(0)
       ..write(obj.energy)
       ..writeByte(1)
@@ -248,7 +250,11 @@ class GameStateAdapter extends TypeAdapter<GameState> {
       ..writeByte(71)
       ..write(obj.hasAINexus)
       ..writeByte(72)
-      ..write(obj.aiNexusPurchasedAt);
+      ..write(obj.aiNexusPurchasedAt)
+      ..writeByte(73)
+      ..write(obj.productionBoostMultiplier)
+      ..writeByte(74)
+      ..write(obj.productionBoostEndTime);
   }
 
   @override

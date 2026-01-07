@@ -470,11 +470,4 @@ class DailyRewardDialog extends StatelessWidget {
       ],
     );
   }
-
-  String _formatShort(double value) {
-    if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(0)}K';
-    }
-    return value.toStringAsFixed(0);
-  }
 }

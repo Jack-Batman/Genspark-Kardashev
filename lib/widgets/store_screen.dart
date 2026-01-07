@@ -610,7 +610,6 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
   
   Widget _buildSpecialsTab() {
     final isFoundersAvailable = _iapService.isFoundersPackAvailable;
-    final hasAINexus = widget.gameProvider.state.hasAINexus;
     
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -699,13 +698,8 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
       final result = await _iapService.purchaseProduct(aiNexus);
       
       if (result.success && result.rewards != null) {
-        // Activate AI Nexus
-        widget.gameProvider.state.hasAINexus = true;
-        widget.gameProvider.state.aiNexusPurchasedAt = DateTime.now();
-        widget.gameProvider.state.purchasedProductIds.add(aiNexus.id);
-        
-        // Notify the provider to update UI
-        widget.gameProvider.notifyListeners();
+        // Activate AI Nexus via the provider method
+        widget.gameProvider.activateAINexus();
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -1052,56 +1046,6 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildBalanceCard() {
-    return GlassContainer(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.purple.withValues(alpha: 0.2),
-            ),
-            child: const Icon(
-              Icons.dark_mode,
-              color: Colors.purpleAccent,
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'YOUR BALANCE',
-                  style: TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 10,
-                    color: AppColors.textSecondary,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.gameProvider.state.darkMatter.toStringAsFixed(0)} DM',
-                  style: const TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.purpleAccent,
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -1564,97 +1508,6 @@ class _StoreScreenState extends State<StoreScreen> with SingleTickerProviderStat
             onPressed: canWatch ? _watchDailyDarkMatterAd : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: canWatch ? AppColors.success : AppColors.surfaceLight,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-            child: Text(
-              canWatch ? 'WATCH' : 'CLAIMED',
-              style: const TextStyle(
-                fontFamily: 'Orbitron',
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildFreeTimeWarpCard() {
-    final canWatch = _adService.canWatchAd(AdPlacement.freeTimeWarp);
-    final remaining = _adService.getRemainingWatches(AdPlacement.freeTimeWarp);
-    
-    return GlassContainer(
-      padding: const EdgeInsets.all(16),
-      borderColor: canWatch 
-          ? AppColors.info.withValues(alpha: 0.5)
-          : Colors.white.withValues(alpha: 0.1),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: canWatch 
-                  ? AppColors.info.withValues(alpha: 0.2)
-                  : Colors.white.withValues(alpha: 0.1),
-            ),
-            child: Icon(
-              Icons.fast_forward,
-              color: canWatch ? AppColors.info : AppColors.textSecondary,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'FREE TIME WARP',
-                  style: TextStyle(
-                    fontFamily: 'Orbitron',
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                    letterSpacing: 1,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  canWatch ? 'Watch ad for 1 hour boost • $remaining/2 remaining' : 'Come back tomorrow!',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withValues(alpha: 0.6),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: canWatch ? () async {
-              final result = await _adService.showRewardedAd(AdPlacement.freeTimeWarp);
-              if (result.success) {
-                // Use FREE time warp - no DM cost
-                widget.gameProvider.activateFreeTimeWarp(hours: 1);
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Free 1-hour Time Warp activated!'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  setState(() {});
-                }
-              }
-            } : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: canWatch ? AppColors.info : AppColors.surfaceLight,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               shape: RoundedRectangleBorder(

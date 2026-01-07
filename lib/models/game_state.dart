@@ -253,6 +253,16 @@ class GameState extends HiveObject {
   @HiveField(72)
   DateTime? aiNexusPurchasedAt; // When the AI Nexus was purchased
   
+  // ═══════════════════════════════════════════════════════════════
+  // PRODUCTION BOOST SYSTEM - Temporary multipliers
+  // ═══════════════════════════════════════════════════════════════
+  
+  @HiveField(73, defaultValue: 1.0)
+  double productionBoostMultiplier; // Current boost multiplier (1.0 = no boost)
+  
+  @HiveField(74)
+  DateTime? productionBoostEndTime; // When the current boost expires
+  
   GameState({
     this.energy = 0,
     this.darkMatter = 0,
@@ -329,6 +339,9 @@ class GameState extends HiveObject {
     // AI Nexus
     this.hasAINexus = false,
     this.aiNexusPurchasedAt,
+    // Production Boost
+    this.productionBoostMultiplier = 1.0,
+    this.productionBoostEndTime,
   })  : generators = generators ?? {},
         activeExpeditions = activeExpeditions ?? [],
         ownedArtifactIds = ownedArtifactIds ?? [],
